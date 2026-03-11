@@ -29,8 +29,20 @@ Claude Code  ──stdin──▸  mcp binary  ──▸  TensorServer (tools + 
 |------|-------------|
 | `tensor_create` | Create a named tensor from flat data + shape. Validates that `data.len() == product(shape)`. |
 | `tensor_add` | Element-wise add two named tensors, store result under a new name. Checks shapes match. |
-| `tensor_inspect` | Return a tensor's shape, data, and element count as JSON. |
+| `tensor_mul` | Element-wise multiply two named tensors, store result. Checks shapes match. |
+| `tensor_get_2d` | Get a single element from a 2D tensor by (row, col). Returns the value or an error if out of bounds. |
+| `tensor_get` | Get a single element by N-dimensional indices using strides. |
+| `tensor_reshape` | Reshape a tensor to a new shape. Product must match element count. |
+| `tensor_transpose` | Transpose by swapping two dimensions. Zero-copy: only swaps shape and strides. |
+| `tensor_inspect` | Return a tensor's shape, strides, data, and element count as JSON. |
 | `tensor_list` | List all tensors currently in memory with their shapes. |
+
+### Autograd tools
+
+| Tool | What it does |
+|------|-------------|
+| `autograd_neuron` | Run a single neuron: `tanh(sum(xi*wi) + bias)`. Returns output and gradients for all inputs, weights, and bias. |
+| `autograd_expr` | Build a custom computation graph from named values and operations (`add`, `mul`, `tanh`), run backward, return all values with gradients. |
 
 ### Project tools
 
@@ -44,9 +56,13 @@ Claude Code  ──stdin──▸  mcp binary  ──▸  TensorServer (tools + 
 | File | Role |
 |------|------|
 | `src/bin/mcp.rs` | Entry point: wires `TensorServer` to stdio transport via `rmcp`. |
-| `src/mcp/mod.rs` | `TensorServer` struct, all tool implementations, and `ServerHandler` impl. |
+| `src/mcp/mod.rs` | `TensorServer` struct, constructor, and `ServerHandler` impl (hub). |
+| `src/mcp/tools/mod.rs` | `#[tool_router]` impl block with all tool methods. |
 | `src/mcp/tools/tensor_ops.rs` | Argument structs for tensor tools (`TensorCreateArgs`, etc.). |
+| `src/mcp/tools/autograd_ops.rs` | Argument structs for autograd tools (`AutogradNeuronArgs`, etc.). |
 | `src/mcp/tools/project.rs` | Argument structs for project tools (`ReadFileArgs`, `CargoExecArgs`). |
+| `src/mcp/prompts/mod.rs` | `#[prompt_router]` impl block with prompt templates. |
+| `src/mcp/resources/mod.rs` | Resource handlers for `docs://`, `source://`, and `tensor://` URIs. |
 | `.mcp.json` (repo root) | Claude Code config — tells it how to spawn the server. |
 
 ## Key design choices
@@ -74,14 +90,10 @@ As we build more tensor operations (Phase 1 and beyond), we'll expose them as to
 
 | Future tool | When | Why |
 |-------------|------|-----|
-| `tensor_mul` | Phase 1 (elementwise mul) | Same pattern as add — zip, multiply, collect. |
-| `tensor_get` | Phase 1 (indexing) | Retrieve a single element by N-dimensional index. |
-| `tensor_reshape` | Phase 1 (reshape) | Return a tensor with new shape, same data. |
-| `tensor_transpose` | Phase 1 (transpose) | Swap dimensions, update strides. |
 | `tensor_matmul` | Phase 2+ | Matrix multiplication — needed for autograd and inference. |
-| `tensor_backward` | Phase 2 (autograd) | Trigger backpropagation on a computation graph. |
+| Tensor-level autograd | Phase 2 (in progress) | Extend backward to work on tensor operations, not just scalars. |
 
-The pattern is: implement the operation in `tensor.rs`, then add a thin MCP wrapper in `mcp/mod.rs` with an args struct in `mcp/tools/`.
+The pattern is: implement the operation in `tensor.rs`, then add a thin MCP wrapper in `mcp/tools/mod.rs` with an args struct in `mcp/tools/tensor_ops.rs`.
 
 ---
 
