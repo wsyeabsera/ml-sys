@@ -18,11 +18,13 @@ Not to ship a library. To understand how ML systems actually work by building br
 
 ### Phase 1 — Tensor from Scratch
 Build a strided n-dimensional array with basic ops and correct memory layout.
-- [ ] `Tensor` struct: `Vec<f32>` + shape
-- [ ] `new` constructor with invariant assertions
+- [x] `Tensor` struct: `Vec<f32>` + shape
+- [x] `new` constructor (invariant assertions still partial)
+- [x] Basic ops: add (elementwise)
+- [x] MCP server: expose tensor tools for interactive use from Claude Code
 - [ ] `get` for 2D (row-major index formula)
 - [ ] Generalize `get` to N dimensions → derive strides
-- [ ] Basic ops: add, mul (elementwise)
+- [ ] Basic ops: mul (elementwise)
 - [ ] Reshape, transpose
 
 **Reading:** [Matrix Calculus You Need for Deep Learning](https://arxiv.org/abs/1802.01528)
@@ -68,7 +70,7 @@ Build a minimal inference engine, implement attention manually, load a real mode
 > Track markdown files created during the project.
 
 - **`ml-rust-project.md`** — This file (roadmap, phases, checklists, readings, notes).
-- **Learning book** — `docs/README.md` is the table of contents. Chapters `01-getting-started.md` through `03-codebase-and-next-steps.md` are the Phase 1 narrative; they explain the current code and point back to this roadmap. New chapters will be added for Phase 2+ as we build.
+- **Learning book** — `docs/README.md` is the table of contents. Chapters `01-getting-started.md` through `04-mcp-server.md` are the Phase 1 narrative; they explain the current code and point back to this roadmap. New chapters will be added for Phase 2+ as we build.
 
 ---
 

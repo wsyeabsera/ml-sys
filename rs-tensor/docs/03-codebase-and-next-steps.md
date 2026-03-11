@@ -31,10 +31,14 @@ So far we have: a tensor with `data` and `shape`, `new`, and element-wise `add`.
 
 | File | Role |
 |------|------|
-| `src/main.rs` | Entry point: creates tensors, calls ops, prints. |
+| `src/bin/main.rs` | Entry point: creates tensors, calls ops, prints. |
+| `src/bin/mcp.rs` | MCP server binary: wires `TensorServer` to stdio transport. |
 | `src/tensor.rs` | `Tensor` struct and methods (`new`, `add`, and eventually `get`, `mul`, `reshape`, `transpose`). |
+| `src/lib.rs` | Library root: re-exports `tensor` and `mcp` modules. |
+| `src/mcp/mod.rs` | MCP server: tool implementations and `ServerHandler`. |
+| `src/mcp/tools/` | Argument structs for MCP tools. |
 | `docs/README.md` | This book’s table of contents and link to the roadmap. |
-| `docs/01-getting-started.md` … `03-codebase-and-next-steps.md` | Phase 1 chapters. |
+| `docs/01-getting-started.md` … `04-mcp-server.md` | Phase 1 chapters. |
 | `docs/ml-rust-project.md` | **The roadmap**: phases, checklists, readings, notes. |
 
 ---
