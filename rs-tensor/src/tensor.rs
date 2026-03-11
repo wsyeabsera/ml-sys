@@ -244,6 +244,88 @@ impl Tensor {
         Tensor::new(result, self.shape.clone())
     }
 
+    /// RMSNorm: normalize a 1D vector by its root-mean-square, then scale by weights.
+    ///
+    /// `out[i] = (x[i] / rms(x)) * weight[i]`
+    /// where `rms(x) = sqrt(mean(x^2) + eps)`
+    ///
+    /// LLaMA uses this instead of LayerNorm — it's simpler (no mean subtraction).
+    pub fn rms_norm(&self, weight: &Tensor, eps: f32) -> Tensor {
+        assert_eq!(self.shape.len(), 1);
+        assert_eq!(self.shape, weight.shape);
+        let n = self.data.len() as f32;
+        let ss: f32 = self.data.iter().map(|x| x * x).sum::<f32>() / n;
+        let rms = (ss + eps).sqrt();
+        let data = self
+            .data
+            .iter()
+            .zip(weight.data.iter())
+            .map(|(x, w)| (x / rms) * w)
+            .collect();
+        Tensor::new(data, self.shape.clone())
+    }
+
+    /// SiLU (Sigmoid Linear Unit): `silu(x) = x * sigmoid(x)`.
+    /// Used in SwiGLU, the FFN activation in LLaMA.
+    pub fn silu(&self) -> Tensor {
+        let data = self
+            .data
+            .iter()
+            .map(|x| x * (1.0 / (1.0 + (-x).exp())))
+            .collect();
+        Tensor::new(data, self.shape.clone())
+    }
+
+    /// Apply RoPE (Rotary Position Embedding) to a vector.
+    ///
+    /// Rotates pairs of elements by position-dependent angles.
+    /// For position `pos` and pair index `i`:
+    ///   freq = 1 / (10000 ^ (2i / dim))
+    ///   angle = pos * freq
+    ///   [x[2i], x[2i+1]] = [x[2i]*cos - x[2i+1]*sin, x[2i]*sin + x[2i+1]*cos]
+    pub fn rope(&self, pos: usize, head_dim: usize) -> Tensor {
+        assert_eq!(self.shape.len(), 1);
+        let mut data = self.data.clone();
+        for i in (0..head_dim).step_by(2) {
+            let freq = 1.0 / (10000.0_f32).powf(i as f32 / head_dim as f32);
+            let angle = pos as f32 * freq;
+            let cos = angle.cos();
+            let sin = angle.sin();
+            let x0 = data[i];
+            let x1 = data[i + 1];
+            data[i] = x0 * cos - x1 * sin;
+            data[i + 1] = x0 * sin + x1 * cos;
+        }
+        Tensor::new(data, self.shape.clone())
+    }
+
+    /// Get a row from a 2D tensor as a 1D tensor.
+    pub fn row(&self, i: usize) -> Tensor {
+        assert_eq!(self.shape.len(), 2);
+        let cols = self.shape[1];
+        let start = i * cols;
+        Tensor::new(self.data[start..start + cols].to_vec(), vec![cols])
+    }
+
+    /// Matrix-vector multiply: [M, N] @ [N] -> [M].
+    /// More efficient than reshaping to [1, N] and using matmul.
+    pub fn matvec(&self, vec: &Tensor) -> Tensor {
+        assert_eq!(self.shape.len(), 2);
+        assert_eq!(vec.shape.len(), 1);
+        let (m, n) = (self.shape[0], self.shape[1]);
+        assert_eq!(n, vec.shape[0]);
+
+        let mut result = vec![0.0f32; m];
+        for i in 0..m {
+            let mut sum = 0.0f32;
+            for j in 0..n {
+                sum += self.data[i * n + j] * vec.data[j];
+            }
+            result[i] = sum;
+        }
+        Tensor::new(result, vec![m])
+    }
+
     /// Element-wise addition. Panics if shapes differ.
     pub fn add(&self, other: &Tensor) -> Tensor {
         assert_eq!(self.shape, other.shape, "shape mismatch for add");

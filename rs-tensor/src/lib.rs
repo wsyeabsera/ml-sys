@@ -1,6 +1,7 @@
 pub mod attention;
 pub mod autograd;
 pub mod gguf;
+pub mod llama;
 pub mod mcp;
 pub mod mlp;
 pub mod tensor;
