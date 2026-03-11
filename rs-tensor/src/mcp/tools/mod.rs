@@ -1,5 +1,8 @@
+pub mod autograd_ops;
 pub mod project;
 pub mod tensor_ops;
+
+use std::collections::HashMap;
 
 use rmcp::{
     ErrorData as McpError,
@@ -10,9 +13,14 @@ use rmcp::{
 use serde_json::json;
 
 use super::TensorServer;
+use crate::autograd::Value;
 use crate::tensor::Tensor;
+use autograd_ops::{AutogradExprArgs, AutogradNeuronArgs};
 use project::{CargoExecArgs, ReadFileArgs};
-use tensor_ops::{TensorAddArgs, TensorCreateArgs, TensorGet2dArgs, TensorInspectArgs, TensorMulArgs};
+use tensor_ops::{
+    TensorAddArgs, TensorCreateArgs, TensorGet2dArgs, TensorGetArgs, TensorInspectArgs,
+    TensorMulArgs, TensorReshapeArgs, TensorTransposeArgs,
+};
 
 #[tool_router(vis = "pub(crate)")]
 impl TensorServer {
@@ -146,7 +154,93 @@ impl TensorServer {
         }
     }
 
-    #[tool(description = "Inspect a named tensor: shows shape and data.")]
+    #[tool(description = "Get a single element by N-dimensional indices. e.g. indices=[1,2] for a 2D tensor.")]
+    async fn tensor_get(
+        &self,
+        Parameters(args): Parameters<TensorGetArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        match store.get(&args.name) {
+            Some(t) => match t.get(&args.indices) {
+                Some(val) => Ok(CallToolResult::success(vec![Content::text(format!(
+                    "{}[{:?}] = {}",
+                    args.name, args.indices, val
+                ))])),
+                None => Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Index {:?} out of bounds for shape {:?}",
+                    args.indices, t.shape
+                ))])),
+            },
+            None => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Tensor '{}' not found",
+                args.name
+            ))])),
+        }
+    }
+
+    #[tool(description = "Reshape a tensor to a new shape. Product of new shape must equal the number of elements.")]
+    async fn tensor_reshape(
+        &self,
+        Parameters(args): Parameters<TensorReshapeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        match store.get(&args.name) {
+            Some(t) => match t.reshape(args.new_shape.clone()) {
+                Some(result) => {
+                    let info = format!(
+                        "reshape('{}') {:?} -> '{}' {:?}",
+                        args.name, t.shape, args.result_name, result.shape
+                    );
+                    drop(store);
+                    self.tensors.lock().await.insert(args.result_name, result);
+                    Ok(CallToolResult::success(vec![Content::text(info)]))
+                }
+                None => {
+                    let current_size: usize = t.data.len();
+                    let new_size: usize = args.new_shape.iter().product();
+                    Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Cannot reshape: {} elements into shape {:?} ({} elements)",
+                        current_size, args.new_shape, new_size
+                    ))]))
+                }
+            },
+            None => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Tensor '{}' not found",
+                args.name
+            ))])),
+        }
+    }
+
+    #[tool(description = "Transpose a tensor by swapping two dimensions. Zero-copy: only swaps shape and strides.")]
+    async fn tensor_transpose(
+        &self,
+        Parameters(args): Parameters<TensorTransposeArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        match store.get(&args.name) {
+            Some(t) => match t.transpose(args.dim0, args.dim1) {
+                Some(result) => {
+                    let info = format!(
+                        "transpose('{}', dim{}↔dim{}) -> '{}': shape={:?}, strides={:?}",
+                        args.name, args.dim0, args.dim1, args.result_name, result.shape, result.strides
+                    );
+                    drop(store);
+                    self.tensors.lock().await.insert(args.result_name, result);
+                    Ok(CallToolResult::success(vec![Content::text(info)]))
+                }
+                None => Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Invalid dimensions ({}, {}) for tensor with {} dims",
+                    args.dim0, args.dim1, t.shape.len()
+                ))])),
+            },
+            None => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Tensor '{}' not found",
+                args.name
+            ))])),
+        }
+    }
+
+    #[tool(description = "Inspect a named tensor: shows shape, strides, and data.")]
     async fn tensor_inspect(
         &self,
         Parameters(args): Parameters<TensorInspectArgs>,
@@ -157,6 +251,7 @@ impl TensorServer {
                 json!({
                     "name": args.name,
                     "shape": t.shape,
+                    "strides": t.strides,
                     "data": t.data,
                     "num_elements": t.data.len(),
                 })
@@ -256,5 +351,192 @@ impl TensorServer {
                 e
             ))])),
         }
+    }
+
+    // ── Autograd tools ──────────────────────────────────────────
+
+    #[tool(description = "Run a single neuron: out = tanh(sum(inputs[i] * weights[i]) + bias). Returns the output and gradients for all inputs, weights, and bias.")]
+    async fn autograd_neuron(
+        &self,
+        Parameters(args): Parameters<AutogradNeuronArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        if args.inputs.len() != args.weights.len() {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "inputs length ({}) must match weights length ({})",
+                args.inputs.len(),
+                args.weights.len()
+            ))]));
+        }
+
+        // Build the computation graph (all synchronous — no Rc across await)
+        let inputs: Vec<Value> = args
+            .inputs
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| Value::new(v, &format!("x{}", i)))
+            .collect();
+        let weights: Vec<Value> = args
+            .weights
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| Value::new(v, &format!("w{}", i)))
+            .collect();
+        let bias = Value::new(args.bias, "b");
+
+        // Forward: sum(xi * wi) + b
+        let mut sum = &inputs[0] * &weights[0];
+        for i in 1..inputs.len() {
+            let prod = &inputs[i] * &weights[i];
+            sum = &sum + &prod;
+        }
+        let pre_activation = &sum + &bias;
+        let output = pre_activation.tanh();
+
+        // Backward
+        output.backward();
+
+        // Collect results
+        let mut results = json!({
+            "output": output.data(),
+            "output_grad": output.grad(),
+            "bias": { "value": bias.data(), "grad": bias.grad() },
+        });
+
+        let input_grads: Vec<_> = inputs
+            .iter()
+            .map(|v| json!({ "value": v.data(), "grad": v.grad() }))
+            .collect();
+        let weight_grads: Vec<_> = weights
+            .iter()
+            .map(|v| json!({ "value": v.data(), "grad": v.grad() }))
+            .collect();
+
+        results["inputs"] = json!(input_grads);
+        results["weights"] = json!(weight_grads);
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&results).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Evaluate a custom autograd expression. Define named values, chain operations (add, mul, tanh), then run backward from a specified output. Returns all values with their gradients.")]
+    async fn autograd_expr(
+        &self,
+        Parameters(args): Parameters<AutogradExprArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let mut store: HashMap<String, Value> = HashMap::new();
+
+        // Create leaf values
+        for (name, data) in &args.values {
+            store.insert(name.clone(), Value::new(*data, name));
+        }
+
+        // Execute operations
+        for op_def in &args.ops {
+            if op_def.len() < 3 {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Operation must have at least 3 elements [result, op, arg1], got {:?}",
+                    op_def
+                ))]));
+            }
+
+            let result_name = &op_def[0];
+            let op = &op_def[1];
+            let arg1_name = &op_def[2];
+
+            let arg1 = match store.get(arg1_name) {
+                Some(v) => v.clone(),
+                None => {
+                    return Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Value '{}' not found",
+                        arg1_name
+                    ))]))
+                }
+            };
+
+            let result = match op.as_str() {
+                "add" => {
+                    if op_def.len() < 4 {
+                        return Ok(CallToolResult::error(vec![Content::text(
+                            "add requires two arguments: [result, \"add\", a, b]".to_string(),
+                        )]));
+                    }
+                    let arg2 = match store.get(&op_def[3]) {
+                        Some(v) => v.clone(),
+                        None => {
+                            return Ok(CallToolResult::error(vec![Content::text(format!(
+                                "Value '{}' not found",
+                                op_def[3]
+                            ))]))
+                        }
+                    };
+                    &arg1 + &arg2
+                }
+                "mul" => {
+                    if op_def.len() < 4 {
+                        return Ok(CallToolResult::error(vec![Content::text(
+                            "mul requires two arguments: [result, \"mul\", a, b]".to_string(),
+                        )]));
+                    }
+                    let arg2 = match store.get(&op_def[3]) {
+                        Some(v) => v.clone(),
+                        None => {
+                            return Ok(CallToolResult::error(vec![Content::text(format!(
+                                "Value '{}' not found",
+                                op_def[3]
+                            ))]))
+                        }
+                    };
+                    &arg1 * &arg2
+                }
+                "tanh" => arg1.tanh(),
+                _ => {
+                    return Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Unknown op '{}'. Supported: add, mul, tanh",
+                        op
+                    ))]))
+                }
+            };
+
+            store.insert(result_name.clone(), result);
+        }
+
+        // Run backward
+        match store.get(&args.backward_from) {
+            Some(v) => v.backward(),
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Value '{}' not found for backward",
+                    args.backward_from
+                ))]))
+            }
+        }
+
+        // Collect all values with gradients
+        let mut results: Vec<serde_json::Value> = Vec::new();
+        // Show leaf values first, then computed values
+        for (name, _) in &args.values {
+            if let Some(v) = store.get(name) {
+                results.push(json!({
+                    "name": name,
+                    "data": v.data(),
+                    "grad": v.grad(),
+                }));
+            }
+        }
+        for op_def in &args.ops {
+            let name = &op_def[0];
+            if let Some(v) = store.get(name) {
+                results.push(json!({
+                    "name": name,
+                    "data": v.data(),
+                    "grad": v.grad(),
+                }));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json!({ "values": results })).unwrap(),
+        )]))
     }
 }

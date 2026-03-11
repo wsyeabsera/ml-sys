@@ -16,8 +16,8 @@ The path we follow is in **[ml-rust-project.md](ml-rust-project.md)**. Summary:
 
 | Phase | Focus | Status |
 |-------|--------|--------|
-| **1** | Tensor from scratch (strided n-dim array, layout, basic ops) | In progress |
-| **2** | Autograd engine (scalar then tensor) | Planned |
+| **1** | Tensor from scratch (strided n-dim array, layout, basic ops) | Done |
+| **2** | Autograd engine (scalar then tensor) | In progress |
 | **3** | Tiny inference engine (feedforward, attention, GGUF) | Planned |
 | **4** | Follow curiosity (SIMD, CUDA, quantization, fusion) | Planned |
 

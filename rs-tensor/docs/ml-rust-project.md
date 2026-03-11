@@ -22,9 +22,11 @@ Build a strided n-dimensional array with basic ops and correct memory layout.
 - [x] `new` constructor (invariant assertions still partial)
 - [x] Basic ops: add, mul (elementwise)
 - [x] `get` for 2D (row-major index formula) — `get_2d(row, col) -> Option<f32>`
+- [x] Strides field on Tensor — computed from shape, enables zero-copy transpose
+- [x] Generalize `get` to N dimensions — `get(&[usize]) -> Option<f32>` using strides
+- [x] Reshape — new shape, same data (materializes if non-contiguous)
+- [x] Transpose — swaps shape and strides entries (zero-copy)
 - [x] MCP server: expose tensor tools for interactive use from Claude Code
-- [ ] Generalize `get` to N dimensions → derive strides
-- [ ] Reshape, transpose
 
 **Reading:** [Matrix Calculus You Need for Deep Learning](https://arxiv.org/abs/1802.01528)
 

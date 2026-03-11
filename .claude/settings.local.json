@@ -17,7 +17,13 @@
       "Bash(cargo build:*)",
       "Bash(cd /Users/yab/Projects/ml-sys/rs-tensor && cargo run --bin main 2>&1)",
       "mcp__rs-tensor__tensor_mul",
-      "mcp__rs-tensor__tensor_get_2d"
+      "mcp__rs-tensor__tensor_get_2d",
+      "mcp__rs-tensor__tensor_get",
+      "mcp__rs-tensor__tensor_reshape",
+      "mcp__rs-tensor__tensor_transpose",
+      "Bash(cd /Users/yab/Projects/ml-sys/rs-tensor && cargo test --lib autograd 2>&1)",
+      "mcp__rs-tensor__autograd_neuron",
+      "mcp__rs-tensor__autograd_expr"
     ]
   },
   "enableAllProjectMcpServers": true,
