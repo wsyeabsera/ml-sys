@@ -37,6 +37,13 @@ Claude Code  ──stdin──▸  mcp binary  ──▸  TensorServer (tools + 
 | `tensor_inspect` | Return a tensor's shape, strides, data, and element count as JSON. |
 | `tensor_list` | List all tensors currently in memory with their shapes. |
 
+### Autograd tools
+
+| Tool | What it does |
+|------|-------------|
+| `autograd_neuron` | Run a single neuron: `tanh(sum(xi*wi) + bias)`. Returns output and gradients for all inputs, weights, and bias. |
+| `autograd_expr` | Build a custom computation graph from named values and operations (`add`, `mul`, `tanh`), run backward, return all values with gradients. |
+
 ### Project tools
 
 | Tool | What it does |

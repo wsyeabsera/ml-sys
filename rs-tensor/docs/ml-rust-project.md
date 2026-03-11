@@ -34,8 +34,9 @@ Build a strided n-dimensional array with basic ops and correct memory layout.
 
 ### Phase 2 — Autograd Engine
 Build a scalar autograd engine (micrograd-style), then extend to tensors.
-- [ ] Scalar `Value` with `+`, `*`, `tanh`
-- [ ] Backprop through a computation graph
+- [x] Scalar `Value` with `+`, `*`, `tanh` — `Rc<RefCell<ValueData>>` for shared graph nodes
+- [x] Backprop through a computation graph — topological sort + reverse walk with chain rule
+- [x] MCP tools: `autograd_neuron` (single neuron forward+backward), `autograd_expr` (custom expressions)
 - [ ] Extend to tensor-level gradients
 
 **Reading:** [Karpathy's micrograd video](https://www.youtube.com/watch?v=VMj-3S1tku0)
@@ -71,7 +72,7 @@ Build a minimal inference engine, implement attention manually, load a real mode
 > Track markdown files created during the project.
 
 - **`ml-rust-project.md`** — This file (roadmap, phases, checklists, readings, notes).
-- **Learning book** — `docs/README.md` is the table of contents. Chapters `01-getting-started.md` through `04-mcp-server.md` are the Phase 1 narrative; they explain the current code and point back to this roadmap. New chapters will be added for Phase 2+ as we build.
+- **Learning book** — `docs/README.md` is the table of contents. Chapters `01-getting-started.md` through `04-mcp-server.md` cover Phase 1; `05-autograd.md` covers Phase 2. New chapters will be added as we build.
 
 ---
 
