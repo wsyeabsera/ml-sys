@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "rs-tensor": {
+      "command": "cargo",
+      "args": ["run", "--bin", "mcp"],
+      "cwd": "/Users/yab/Projects/ml-sys/rs-tensor"
+    }
+  }
+}

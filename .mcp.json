@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "rs-tensor": {
+      "command": "/Users/yab/Projects/ml-sys/rs-tensor/target/debug/mcp",
+      "args": [],
+      "cwd": "/Users/yab/Projects/ml-sys/rs-tensor"
+    }
+  }
+}
