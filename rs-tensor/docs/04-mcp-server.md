@@ -59,6 +59,7 @@ Claude Code  ──stdin──▸  mcp binary  ──▸  TensorServer (tools + 
 | `src/mcp/mod.rs` | `TensorServer` struct, constructor, and `ServerHandler` impl (hub). |
 | `src/mcp/tools/mod.rs` | `#[tool_router]` impl block with all tool methods. |
 | `src/mcp/tools/tensor_ops.rs` | Argument structs for tensor tools (`TensorCreateArgs`, etc.). |
+| `src/mcp/tools/autograd_ops.rs` | Argument structs for autograd tools (`AutogradNeuronArgs`, etc.). |
 | `src/mcp/tools/project.rs` | Argument structs for project tools (`ReadFileArgs`, `CargoExecArgs`). |
 | `src/mcp/prompts/mod.rs` | `#[prompt_router]` impl block with prompt templates. |
 | `src/mcp/resources/mod.rs` | Resource handlers for `docs://`, `source://`, and `tensor://` URIs. |
@@ -90,7 +91,7 @@ As we build more tensor operations (Phase 1 and beyond), we'll expose them as to
 | Future tool | When | Why |
 |-------------|------|-----|
 | `tensor_matmul` | Phase 2+ | Matrix multiplication — needed for autograd and inference. |
-| `tensor_backward` | Phase 2 (autograd) | Trigger backpropagation on a computation graph. |
+| Tensor-level autograd | Phase 2 (in progress) | Extend backward to work on tensor operations, not just scalars. |
 
 The pattern is: implement the operation in `tensor.rs`, then add a thin MCP wrapper in `mcp/tools/mod.rs` with an args struct in `mcp/tools/tensor_ops.rs`.
 
