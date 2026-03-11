@@ -1,0 +1,40 @@
+# Rust
+/target/
+**/target/
+Cargo.lock
+*.rs.bk
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python (if used elsewhere in repo)
+__pycache__/
+.venv/
+venv/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+# Env and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Build artifacts
+*.so
+*.dylib
+*.dll
+
+# Logs and temp
+*.log
+tmp/
+temp/
