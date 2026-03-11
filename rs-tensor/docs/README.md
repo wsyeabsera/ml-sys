@@ -48,7 +48,7 @@ That generates the API docs from the `///` comments in the code.
 
 ### Part II — Phase 2: Autograd engine
 
-*Chapters will be added as we build the scalar autograd engine and extend to tensors. See [ml-rust-project.md](ml-rust-project.md) for the checklist.*
+5. **[The autograd engine](05-autograd.md)** — Scalar autograd: `Value` type, computation graph, backward pass, chain rule, and MCP tools.
 
 ### Part III — Phase 3: Tiny inference engine
 
