@@ -8,7 +8,13 @@
       "mcp__rs-tensor__tensor_add",
       "mcp__rs-tensor__tensor_inspect",
       "Bash(tree -L 3 /Users/yab/Projects/ml-sys -I 'target|.git' 2>/dev/null || find /Users/yab/Projects/ml-sys -not -path '*/target/*' -not -path '*/.git/*' -type d | head -30)",
-      "Bash(wc -l /Users/yab/Projects/ml-sys/rs-tensor/src/mcp/tools/*.rs /Users/yab/Projects/ml-sys/rs-tensor/src/bin/*.rs)"
+      "Bash(wc -l /Users/yab/Projects/ml-sys/rs-tensor/src/mcp/tools/*.rs /Users/yab/Projects/ml-sys/rs-tensor/src/bin/*.rs)",
+      "Bash(find /Users/yab/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rmcp-0.16.0 -name \"examples\" -o -name \"example*\" 2>/dev/null | head -10)",
+      "Bash(find /Users/yab/.cargo/registry/src -maxdepth 1 -name \"rmcp-*\" 2>/dev/null | head -5)",
+      "Bash(echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"0.1.0\"}}}' | ./target/debug/mcp 2>/dev/null | python3 -m json.tool)",
+      "mcp__rs-tensor__read_file",
+      "mcp__rs-tensor__cargo_exec",
+      "Bash(cargo build:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
