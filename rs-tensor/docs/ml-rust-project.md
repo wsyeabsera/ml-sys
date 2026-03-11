@@ -20,12 +20,13 @@ Not to ship a library. To understand how ML systems actually work by building br
 Build a strided n-dimensional array with basic ops and correct memory layout.
 - [x] `Tensor` struct: `Vec<f32>` + shape
 - [x] `new` constructor (invariant assertions still partial)
-- [x] Basic ops: add (elementwise)
+- [x] Basic ops: add, mul (elementwise)
+- [x] `get` for 2D (row-major index formula) — `get_2d(row, col) -> Option<f32>`
+- [x] Strides field on Tensor — computed from shape, enables zero-copy transpose
+- [x] Generalize `get` to N dimensions — `get(&[usize]) -> Option<f32>` using strides
+- [x] Reshape — new shape, same data (materializes if non-contiguous)
+- [x] Transpose — swaps shape and strides entries (zero-copy)
 - [x] MCP server: expose tensor tools for interactive use from Claude Code
-- [ ] `get` for 2D (row-major index formula)
-- [ ] Generalize `get` to N dimensions → derive strides
-- [ ] Basic ops: mul (elementwise)
-- [ ] Reshape, transpose
 
 **Reading:** [Matrix Calculus You Need for Deep Learning](https://arxiv.org/abs/1802.01528)
 
@@ -33,8 +34,9 @@ Build a strided n-dimensional array with basic ops and correct memory layout.
 
 ### Phase 2 — Autograd Engine
 Build a scalar autograd engine (micrograd-style), then extend to tensors.
-- [ ] Scalar `Value` with `+`, `*`, `tanh`
-- [ ] Backprop through a computation graph
+- [x] Scalar `Value` with `+`, `*`, `tanh` — `Rc<RefCell<ValueData>>` for shared graph nodes
+- [x] Backprop through a computation graph — topological sort + reverse walk with chain rule
+- [x] MCP tools: `autograd_neuron` (single neuron forward+backward), `autograd_expr` (custom expressions)
 - [ ] Extend to tensor-level gradients
 
 **Reading:** [Karpathy's micrograd video](https://www.youtube.com/watch?v=VMj-3S1tku0)
@@ -70,7 +72,7 @@ Build a minimal inference engine, implement attention manually, load a real mode
 > Track markdown files created during the project.
 
 - **`ml-rust-project.md`** — This file (roadmap, phases, checklists, readings, notes).
-- **Learning book** — `docs/README.md` is the table of contents. Chapters `01-getting-started.md` through `04-mcp-server.md` are the Phase 1 narrative; they explain the current code and point back to this roadmap. New chapters will be added for Phase 2+ as we build.
+- **Learning book** — `docs/README.md` is the table of contents. Chapters `01-getting-started.md` through `04-mcp-server.md` cover Phase 1; `05-autograd.md` covers Phase 2. New chapters will be added as we build.
 
 ---
 

@@ -16,8 +16,8 @@ The path we follow is in **[ml-rust-project.md](ml-rust-project.md)**. Summary:
 
 | Phase | Focus | Status |
 |-------|--------|--------|
-| **1** | Tensor from scratch (strided n-dim array, layout, basic ops) | In progress |
-| **2** | Autograd engine (scalar then tensor) | Planned |
+| **1** | Tensor from scratch (strided n-dim array, layout, basic ops) | Done |
+| **2** | Autograd engine (scalar then tensor) | In progress |
 | **3** | Tiny inference engine (feedforward, attention, GGUF) | Planned |
 | **4** | Follow curiosity (SIMD, CUDA, quantization, fusion) | Planned |
 
@@ -48,7 +48,7 @@ That generates the API docs from the `///` comments in the code.
 
 ### Part II — Phase 2: Autograd engine
 
-*Chapters will be added as we build the scalar autograd engine and extend to tensors. See [ml-rust-project.md](ml-rust-project.md) for the checklist.*
+5. **[The autograd engine](05-autograd.md)** — Scalar autograd: `Value` type, computation graph, backward pass, chain rule, and MCP tools.
 
 ### Part III — Phase 3: Tiny inference engine
 
