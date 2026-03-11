@@ -28,4 +28,4 @@ pub struct Tensor {
 
 `data` is the buffer; `shape` tells you how many dimensions and how long each one is. Right now we only use 1D shapes like `[3]`, but the type is ready for more.
 
-Next: [Chapter 3 — Ownership and references](03-ownership-and-references.md)
+Next: [Chapter 3 — Phase 1 checklist and next steps](03-codebase-and-next-steps.md)

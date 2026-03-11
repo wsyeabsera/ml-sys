@@ -2,7 +2,9 @@
 
 ## What this book is
 
-This book explains the **rs-tensor** project: a small tensor library written in Rust. The goal is to learn Rust concepts (ownership, references, iterators, traits) by building something concrete. Each chapter focuses on one idea and points to where it shows up in the code.
+This book explains the **rs-tensor** project: we’re building ML infrastructure from scratch in Rust to understand how it works. The goal isn’t to ship a library — it’s to learn by building. Each chapter ties one idea (ownership, iterators, etc.) to the code.
+
+The overall path is defined in **[ml-rust-project.md](ml-rust-project.md)** (the roadmap). We’re currently in **Phase 1 — Tensor from scratch**: a strided n-dimensional array with basic ops and correct memory layout. Later phases cover autograd, a tiny inference engine, and optional deep dives (SIMD, CUDA, quantization).
 
 ## How to run the project
 
@@ -33,7 +35,7 @@ Use the API docs for “what does this function take and return?” Use this boo
 ## How to read this book
 
 - **Chapters are short.** Each one covers one theme and points to the relevant code.
-- **Jump around if you want.** Use the [table of contents](README.md#table-of-contents) to pick a topic.
-- **Keep the code open.** The book references `src/main.rs` and `src/tensor.rs`; read those files as you go.
+- **The roadmap is the source of truth.** [ml-rust-project.md](ml-rust-project.md) has the phase checklists, readings, and notes.
+- **Keep the code open.** The book references `src/main.rs` and `src/tensor.rs`; read those as you go.
 
 Next: [Chapter 2 — The big picture](02-the-big-picture.md)

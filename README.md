@@ -12,9 +12,8 @@ Machine learning systems and tooling.
 
 ## Docs (rs-tensor)
 
-We build docs as we go so the project doubles as a learning resource.
+We build docs as we go; the project follows a learning arc (tensor → autograd → inference → curiosity).
 
-- **API docs** (from code comments): from the `rs-tensor` directory run  
-  `cargo doc --open`  
-  to generate and open the API docs in the browser.
-- **Learning book** (chapters and “why”): [rs-tensor/docs/README.md](rs-tensor/docs/README.md) is the table of contents; chapters 1–7 walk through ownership, iterators, `Debug`, and the codebase for junior devs.
+- **Roadmap**: [rs-tensor/docs/ml-rust-project.md](rs-tensor/docs/ml-rust-project.md) — phases, checklists, readings, notes.
+- **Learning book**: [rs-tensor/docs/README.md](rs-tensor/docs/README.md) — table of contents; chapters 1–3 cover Phase 1 (tensor from scratch). New chapters added as we move into Phase 2+.
+- **API docs**: from the `rs-tensor` directory run `cargo doc --open` to generate docs from code comments.

@@ -1,6 +1,27 @@
 # Learning Rust with rs-tensor
 
-A short book that walks through this codebase and explains **what we built and why**, from a junior developer’s perspective. Read it alongside the code and the generated API docs.
+A short book that walks through this codebase and explains **what we built and why**. The project follows a learning arc defined in **[ml-rust-project.md](ml-rust-project.md)** — build ML infrastructure from scratch to understand how it works (not to ship a library).
+
+---
+
+## Goal
+
+Understand how ML systems actually work by building broken versions of them. The docs and code are aimed at someone with basic Rust and basic ML who wants to see how tensors, autograd, and inference fit together.
+
+---
+
+## The learning arc
+
+The path we follow is in **[ml-rust-project.md](ml-rust-project.md)**. Summary:
+
+| Phase | Focus | Status |
+|-------|--------|--------|
+| **1** | Tensor from scratch (strided n-dim array, layout, basic ops) | In progress |
+| **2** | Autograd engine (scalar then tensor) | Planned |
+| **3** | Tiny inference engine (feedforward, attention, GGUF) | Planned |
+| **4** | Follow curiosity (SIMD, CUDA, quantization, fusion) | Planned |
+
+Use that file for checklists, readings, and notes. This book is the narrative that goes with the code.
 
 ---
 
@@ -12,20 +33,30 @@ From the `rs-tensor` directory:
 cargo doc --open
 ```
 
-That generates the API docs from the `///` comments in the code and opens them in your browser.
+That generates the API docs from the `///` comments in the code.
 
 ---
 
 ## Table of contents
 
-1. **[Getting started](01-getting-started.md)** — How to run the project and how to use this book.
-2. **[The big picture](02-the-big-picture.md)** — What a tensor is, and how we represent it (data + shape).
-3. **[Ownership and references](03-ownership-and-references.md)** — Structs, `&self`, `&Tensor`, and why we borrow instead of move.
-4. **[Debug and printing](04-debug-and-printing.md)** — `#[derive(Debug)]` and `println!("{:?}", ...)`.
-5. **[Iterators](05-iterators.md)** — `Vec`, `.iter()`, `.zip()`, `.map()`, and `.collect()` in the `add` method.
-6. **[Errors and shape checking](06-errors-and-shape-checking.md)** — `assert_eq!`, panic, and why we `.clone()` shape.
-7. **[Codebase and next steps](07-codebase-and-next-steps.md)** — File layout and ideas for what to build next.
+### Part I — Phase 1: Tensor from scratch
+
+1. **[Getting started](01-getting-started.md)** — Run the project, use this book, where we are in the arc.
+2. **[The big picture](02-the-big-picture.md)** — What a tensor is (data + shape).
+3. **[Phase 1 checklist and next steps](03-codebase-and-next-steps.md)** — What’s done, what’s next (get, strides, mul, reshape, transpose), and the Phase 1 reading.
+
+### Part II — Phase 2: Autograd engine
+
+*Chapters will be added as we build the scalar autograd engine and extend to tensors. See [ml-rust-project.md](ml-rust-project.md) for the checklist.*
+
+### Part III — Phase 3: Tiny inference engine
+
+*Chapters will be added as we add feedforward inference, attention, and GGUF loading. See [ml-rust-project.md](ml-rust-project.md).*
+
+### Part IV — Phase 4: Follow curiosity
+
+*Optional deep dives (SIMD, CUDA, quantization, fusion). See [ml-rust-project.md](ml-rust-project.md).*
 
 ---
 
-*As you add code, add new chapters or update existing ones so the book stays in sync with the project.*
+*As you add code, add or update chapters so the book stays in sync with the project. Keep [ml-rust-project.md](ml-rust-project.md) as the single source of truth for the learning arc.*
