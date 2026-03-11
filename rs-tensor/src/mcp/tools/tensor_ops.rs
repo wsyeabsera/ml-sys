@@ -21,6 +21,26 @@ pub struct TensorAddArgs {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct TensorMulArgs {
+    /// Name of the first tensor
+    pub a: String,
+    /// Name of the second tensor
+    pub b: String,
+    /// Name for the result tensor
+    pub result_name: String,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct TensorGet2dArgs {
+    /// Name of the tensor
+    pub name: String,
+    /// Row index
+    pub row: usize,
+    /// Column index
+    pub col: usize,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct TensorInspectArgs {
     /// Name of the tensor to inspect
     pub name: String,

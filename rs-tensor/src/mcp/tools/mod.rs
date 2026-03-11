@@ -12,7 +12,7 @@ use serde_json::json;
 use super::TensorServer;
 use crate::tensor::Tensor;
 use project::{CargoExecArgs, ReadFileArgs};
-use tensor_ops::{TensorAddArgs, TensorCreateArgs, TensorInspectArgs};
+use tensor_ops::{TensorAddArgs, TensorCreateArgs, TensorGet2dArgs, TensorInspectArgs, TensorMulArgs};
 
 #[tool_router(vis = "pub(crate)")]
 impl TensorServer {
@@ -78,6 +78,72 @@ impl TensorServer {
         drop(store);
         self.tensors.lock().await.insert(args.result_name, result);
         Ok(CallToolResult::success(vec![Content::text(info)]))
+    }
+
+    #[tool(description = "Element-wise multiply two named tensors and store the result. Shapes must match.")]
+    async fn tensor_mul(
+        &self,
+        Parameters(args): Parameters<TensorMulArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        let a = match store.get(&args.a) {
+            Some(t) => t,
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Tensor '{}' not found",
+                    args.a
+                ))]))
+            }
+        };
+        let b = match store.get(&args.b) {
+            Some(t) => t,
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Tensor '{}' not found",
+                    args.b
+                ))]))
+            }
+        };
+
+        if a.shape != b.shape {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "Shape mismatch: {:?} vs {:?}",
+                a.shape, b.shape
+            ))]));
+        }
+
+        let result = a.mul(b);
+        let info = format!(
+            "tensor_mul('{}', '{}') -> '{}': shape={:?}, data={:?}",
+            args.a, args.b, args.result_name, result.shape, result.data
+        );
+        drop(store);
+        self.tensors.lock().await.insert(args.result_name, result);
+        Ok(CallToolResult::success(vec![Content::text(info)]))
+    }
+
+    #[tool(description = "Get a single element from a 2D tensor by (row, col). Returns the value at that position.")]
+    async fn tensor_get_2d(
+        &self,
+        Parameters(args): Parameters<TensorGet2dArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        match store.get(&args.name) {
+            Some(t) => match t.get_2d(args.row, args.col) {
+                Some(val) => Ok(CallToolResult::success(vec![Content::text(format!(
+                    "{}[{}, {}] = {}",
+                    args.name, args.row, args.col, val
+                ))])),
+                None => Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Index ({}, {}) out of bounds for shape {:?}",
+                    args.row, args.col, t.shape
+                ))])),
+            },
+            None => Ok(CallToolResult::error(vec![Content::text(format!(
+                "Tensor '{}' not found",
+                args.name
+            ))])),
+        }
     }
 
     #[tool(description = "Inspect a named tensor: shows shape and data.")]

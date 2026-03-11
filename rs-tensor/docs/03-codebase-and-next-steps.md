@@ -12,18 +12,16 @@ Build a strided n-dimensional array with basic ops and correct memory layout.
 |------|--------|
 | `Tensor` struct: `Vec<f32>` + shape | Done |
 | `new` constructor with invariant assertions | Partially done (we have `new`; we could add assertions that `data.len() == product(shape)`) |
-| `get` for 2D (row-major index formula) | Not started |
+| `get` for 2D (row-major index formula) | Done — `get_2d(row, col)` returns `Option<f32>` |
 | Generalize `get` to N dimensions → derive strides | Not started |
-| Basic ops: add, mul (elementwise) | add done; mul not started |
+| Basic ops: add, mul (elementwise) | Done |
 | Reshape, transpose | Not started |
 
-So far we have: a tensor with `data` and `shape`, `new`, and element-wise `add`. The next steps on the path are:
+So far we have: a tensor with `data` and `shape`, `new`, element-wise `add` and `mul`, and 2D indexing via `get_2d`. The next steps on the path are:
 
-1. **`get` for 2D** — Implement indexing for a 2D tensor using the row-major formula: index = `i * cols + j` (or with strides: `i * strides[0] + j * strides[1]`).
-2. **Strides and N-dimensional `get`** — Derive strides from shape (e.g. for shape `[2, 3]`, strides might be `[3, 1]` in row-major). Then implement `get` for an arbitrary number of indices so we can index into any dimension.
-3. **Element-wise `mul`** — Same pattern as `add`: zip, map, collect.
-4. **Reshape** — Return a new tensor that shares or reinterprets the same `data` with a different shape (product of new shape must match current size).
-5. **Transpose** — Swap dimensions; layout/strides change accordingly.
+1. **Strides and N-dimensional `get`** — Derive strides from shape (e.g. for shape `[2, 3]`, strides are `[3, 1]` in row-major). Then implement `get` for an arbitrary number of indices so we can index into any dimension.
+2. **Reshape** — Return a new tensor that shares or reinterprets the same `data` with a different shape (product of new shape must match current size).
+3. **Transpose** — Swap dimensions; layout/strides change accordingly.
 
 ---
 
@@ -33,7 +31,7 @@ So far we have: a tensor with `data` and `shape`, `new`, and element-wise `add`.
 |------|------|
 | `src/bin/main.rs` | Entry point: creates tensors, calls ops, prints. |
 | `src/bin/mcp.rs` | MCP server binary: wires `TensorServer` to stdio transport. |
-| `src/tensor.rs` | `Tensor` struct and methods (`new`, `add`, and eventually `get`, `mul`, `reshape`, `transpose`). |
+| `src/tensor.rs` | `Tensor` struct and methods (`new`, `add`, `mul`, `get_2d`, and eventually `get`, `reshape`, `transpose`). |
 | `src/lib.rs` | Library root: re-exports `tensor` and `mcp` modules. |
 | `src/mcp/mod.rs` | MCP server: tool implementations and `ServerHandler`. |
 | `src/mcp/tools/` | Argument structs for MCP tools. |

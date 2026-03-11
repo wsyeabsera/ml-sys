@@ -14,7 +14,10 @@
       "Bash(echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"0.1.0\"}}}' | ./target/debug/mcp 2>/dev/null | python3 -m json.tool)",
       "mcp__rs-tensor__read_file",
       "mcp__rs-tensor__cargo_exec",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(cd /Users/yab/Projects/ml-sys/rs-tensor && cargo run --bin main 2>&1)",
+      "mcp__rs-tensor__tensor_mul",
+      "mcp__rs-tensor__tensor_get_2d"
     ]
   },
   "enableAllProjectMcpServers": true,

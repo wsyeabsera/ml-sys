@@ -20,11 +20,10 @@ Not to ship a library. To understand how ML systems actually work by building br
 Build a strided n-dimensional array with basic ops and correct memory layout.
 - [x] `Tensor` struct: `Vec<f32>` + shape
 - [x] `new` constructor (invariant assertions still partial)
-- [x] Basic ops: add (elementwise)
+- [x] Basic ops: add, mul (elementwise)
+- [x] `get` for 2D (row-major index formula) — `get_2d(row, col) -> Option<f32>`
 - [x] MCP server: expose tensor tools for interactive use from Claude Code
-- [ ] `get` for 2D (row-major index formula)
 - [ ] Generalize `get` to N dimensions → derive strides
-- [ ] Basic ops: mul (elementwise)
 - [ ] Reshape, transpose
 
 **Reading:** [Matrix Calculus You Need for Deep Learning](https://arxiv.org/abs/1802.01528)
