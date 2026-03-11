@@ -9,6 +9,7 @@ import Chapter4 from "./pages/Chapter4";
 import Chapter5 from "./pages/Chapter5";
 import Chapter6 from "./pages/Chapter6";
 import Chapter7 from "./pages/Chapter7";
+import Chapter8 from "./pages/Chapter8";
 
 export default function App() {
   const location = useLocation();
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/ch/5" element={<Chapter5 />} />
           <Route path="/ch/6" element={<Chapter6 />} />
           <Route path="/ch/7" element={<Chapter7 />} />
+          <Route path="/ch/8" element={<Chapter8 />} />
         </Routes>
       </AnimatePresence>
     </Layout>

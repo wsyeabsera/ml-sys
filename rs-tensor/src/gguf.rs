@@ -13,7 +13,7 @@ use std::io::{self, Read, Seek, SeekFrom};
 
 use crate::tensor::Tensor;
 
-const GGUF_MAGIC: u32 = 0x46475547; // "GGUF" in little-endian
+const GGUF_MAGIC: u32 = 0x46554747; // "GGUF" as little-endian u32: bytes [0x47, 0x47, 0x55, 0x46]
 
 /// GGUF value types (from the spec).
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -182,35 +182,51 @@ impl<R: Read + Seek> GgufFile<R> {
         }
 
         let version = read_u32(&mut reader)?;
-        if version < 2 || version > 3 {
+        if version > 3 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("Unsupported GGUF version: {} (supported: 2, 3)", version),
+                format!("Unsupported GGUF version: {} (supported: 1, 2, 3)", version),
             ));
         }
 
-        let tensor_count = read_u64(&mut reader)? as usize;
-        let metadata_kv_count = read_u64(&mut reader)? as usize;
+        // v1 uses u32 for counts, v2/v3 use u64
+        let (tensor_count, metadata_kv_count) = if version == 1 {
+            (read_u32(&mut reader)? as usize, read_u32(&mut reader)? as usize)
+        } else {
+            (read_u64(&mut reader)? as usize, read_u64(&mut reader)? as usize)
+        };
 
         // Read metadata key-value pairs
         let mut metadata = HashMap::new();
         for _ in 0..metadata_kv_count {
-            let key = read_gguf_string(&mut reader)?;
+            let key = if version == 1 {
+                read_gguf_string_v1(&mut reader)?
+            } else {
+                read_gguf_string(&mut reader)?
+            };
             let value_type = GgufValueType::from_u32(read_u32(&mut reader)?).ok_or_else(|| {
                 io::Error::new(io::ErrorKind::InvalidData, "Unknown metadata value type")
             })?;
-            let value = read_metadata_value(&mut reader, value_type)?;
+            let value = read_metadata_value(&mut reader, value_type, version)?;
             metadata.insert(key, value);
         }
 
         // Read tensor infos
         let mut tensor_infos = Vec::with_capacity(tensor_count);
         for _ in 0..tensor_count {
-            let name = read_gguf_string(&mut reader)?;
+            let name = if version == 1 {
+                read_gguf_string_v1(&mut reader)?
+            } else {
+                read_gguf_string(&mut reader)?
+            };
             let n_dims = read_u32(&mut reader)? as usize;
             let mut shape = Vec::with_capacity(n_dims);
             for _ in 0..n_dims {
-                shape.push(read_u64(&mut reader)? as usize);
+                if version == 1 {
+                    shape.push(read_u32(&mut reader)? as usize);
+                } else {
+                    shape.push(read_u64(&mut reader)? as usize);
+                }
             }
             let dtype = GgmlDtype::from_u32(read_u32(&mut reader)?);
             let offset = read_u64(&mut reader)?;
@@ -406,7 +422,7 @@ fn read_f64<R: Read>(r: &mut R) -> io::Result<f64> {
     Ok(f64::from_le_bytes(buf))
 }
 
-/// Read a GGUF string: u64 length followed by that many UTF-8 bytes (no null terminator).
+/// Read a GGUF string (v2/v3): u64 length followed by UTF-8 bytes.
 fn read_gguf_string<R: Read>(r: &mut R) -> io::Result<String> {
     let len = read_u64(r)? as usize;
     let mut buf = vec![0u8; len];
@@ -415,8 +431,17 @@ fn read_gguf_string<R: Read>(r: &mut R) -> io::Result<String> {
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Invalid UTF-8: {}", e)))
 }
 
+/// Read a GGUF string (v1): u32 length followed by UTF-8 bytes.
+fn read_gguf_string_v1<R: Read>(r: &mut R) -> io::Result<String> {
+    let len = read_u32(r)? as usize;
+    let mut buf = vec![0u8; len];
+    r.read_exact(&mut buf)?;
+    String::from_utf8(buf)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("Invalid UTF-8: {}", e)))
+}
+
 /// Read a metadata value of the given type.
-fn read_metadata_value<R: Read>(r: &mut R, vtype: GgufValueType) -> io::Result<MetadataValue> {
+fn read_metadata_value<R: Read>(r: &mut R, vtype: GgufValueType, version: u32) -> io::Result<MetadataValue> {
     match vtype {
         GgufValueType::Uint8 => Ok(MetadataValue::Uint8(read_u8(r)?)),
         GgufValueType::Int8 => Ok(MetadataValue::Int8(read_i8(r)?)),
@@ -426,16 +451,19 @@ fn read_metadata_value<R: Read>(r: &mut R, vtype: GgufValueType) -> io::Result<M
         GgufValueType::Int32 => Ok(MetadataValue::Int32(read_i32(r)?)),
         GgufValueType::Float32 => Ok(MetadataValue::Float32(read_f32(r)?)),
         GgufValueType::Bool => Ok(MetadataValue::Bool(read_u8(r)? != 0)),
-        GgufValueType::String => Ok(MetadataValue::String(read_gguf_string(r)?)),
+        GgufValueType::String => {
+            let s = if version == 1 { read_gguf_string_v1(r)? } else { read_gguf_string(r)? };
+            Ok(MetadataValue::String(s))
+        }
         GgufValueType::Array => {
             let elem_type =
                 GgufValueType::from_u32(read_u32(r)?).ok_or_else(|| {
                     io::Error::new(io::ErrorKind::InvalidData, "Unknown array element type")
                 })?;
-            let count = read_u64(r)? as usize;
+            let count = if version == 1 { read_u32(r)? as usize } else { read_u64(r)? as usize };
             let mut values = Vec::with_capacity(count);
             for _ in 0..count {
-                values.push(read_metadata_value(r, elem_type)?);
+                values.push(read_metadata_value(r, elem_type, version)?);
             }
             Ok(MetadataValue::Array(values))
         }

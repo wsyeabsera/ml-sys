@@ -8,6 +8,7 @@ const chapters = [
   { path: "/ch/5", title: "Autograd Engine" },
   { path: "/ch/6", title: "Layers & MLPs" },
   { path: "/ch/7", title: "Attention" },
+  { path: "/ch/8", title: "GGUF Model Files" },
 ];
 
 export default function ChapterNav({ current }: { current: number }) {

@@ -60,7 +60,7 @@ export const phases: Phase[] = [
     tasks: [
       { label: "Feedforward layer (MLP)", status: "done" },
       { label: "Scaled dot-product attention", status: "done" },
-      { label: "GGUF format loader", status: "planned" },
+      { label: "GGUF format loader", status: "done" },
       { label: "Token-by-token generation", status: "planned" },
     ],
     readings: [

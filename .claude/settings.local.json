@@ -49,7 +49,14 @@
       "Bash(cd /Users/yab/Projects/ml-sys/rs-tensor && cargo run --example debug_attention 2>&1)",
       "mcp__rs-tensor__attention_forward",
       "Bash(wc -l /Users/yab/Projects/ml-sys/rs-tensor/src/*.rs)",
-      "Bash(ls -la /Users/yab/Projects/ml-sys/rs-tensor/src/ | grep \"\\\\.rs$\")"
+      "Bash(ls -la /Users/yab/Projects/ml-sys/rs-tensor/src/ | grep \"\\\\.rs$\")",
+      "Bash(curl -L -o /Users/yab/Projects/ml-sys/rs-tensor/model-files/stories15M.gguf \"https://huggingface.co/karpathy/tinyllamas/resolve/main/stories15M.gguf\" 2>&1)",
+      "Bash(ls -la /Users/yab/Projects/ml-sys/rs-tensor/model-files/stories15M.gguf && xxd /Users/yab/Projects/ml-sys/rs-tensor/model-files/stories15M.gguf | head -3)",
+      "Bash(curl -L -o /Users/yab/Projects/ml-sys/rs-tensor/model-files/stories15M.gguf \"https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-f32.gguf\" 2>&1)",
+      "WebSearch",
+      "Bash(curl -L -o /Users/yab/Projects/ml-sys/rs-tensor/model-files/stories15M-f32.gguf \"https://huggingface.co/klosax/tinyllamas-stories-gguf/resolve/main/tinyllamas-stories-15m-f32.gguf\" 2>&1)",
+      "mcp__rs-tensor__gguf_inspect",
+      "mcp__rs-tensor__gguf_load_tensor"
     ]
   },
   "enableAllProjectMcpServers": true,

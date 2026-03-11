@@ -1,7 +1,7 @@
 export interface McpTool {
   name: string;
   description: string;
-  category: "tensor" | "autograd" | "project";
+  category: "tensor" | "autograd" | "gguf" | "project";
   params: string[];
 }
 
@@ -25,6 +25,10 @@ export const mcpTools: McpTool[] = [
   { name: "mlp_forward", description: "Run MLP forward+backward: stack of tanh(x@w+b) layers", category: "autograd", params: ["layers", "input"] },
   { name: "attention_forward", description: "Scaled dot-product attention: softmax(QK^T/√d_k)V", category: "autograd", params: ["q", "k", "v"] },
 
+  // GGUF tools
+  { name: "gguf_inspect", description: "Inspect a GGUF model file: metadata, architecture, tensor catalog", category: "gguf", params: ["path"] },
+  { name: "gguf_load_tensor", description: "Load a tensor from a GGUF file into the tensor store (F32/F16)", category: "gguf", params: ["path", "tensor_name", "store_as?"] },
+
   // Project tools
   { name: "read_file", description: "Read a project file (path-restricted)", category: "project", params: ["path"] },
   { name: "cargo_exec", description: "Run cargo build or cargo run", category: "project", params: ["subcommand"] },
@@ -33,5 +37,6 @@ export const mcpTools: McpTool[] = [
 export const categories = [
   { key: "tensor" as const, label: "Tensor Operations", count: 10 },
   { key: "autograd" as const, label: "Autograd", count: 5 },
+  { key: "gguf" as const, label: "GGUF", count: 2 },
   { key: "project" as const, label: "Project", count: 2 },
 ];
