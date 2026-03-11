@@ -1,5 +1,6 @@
 pub mod autograd_ops;
 pub mod gguf_ops;
+pub mod llama_ops;
 pub mod project;
 pub mod tensor_ops;
 
@@ -17,6 +18,7 @@ use super::TensorServer;
 use crate::attention::scaled_dot_product_attention;
 use crate::autograd::Value;
 use crate::gguf::GgufFile;
+use crate::llama::{self, LlamaModel};
 use crate::mlp::{Layer, MLP};
 use crate::tensor::Tensor;
 use crate::tensor_value::TensorValue;
@@ -24,6 +26,7 @@ use autograd_ops::{
     AttentionArgs, AutogradExprArgs, AutogradNeuronArgs, AutogradTensorLayerArgs, MlpForwardArgs,
 };
 use gguf_ops::{GgufInspectArgs, GgufLoadTensorArgs};
+use llama_ops::{LlamaLoadArgs, LlamaGenerateArgs};
 use project::{CargoExecArgs, ReadFileArgs};
 use tensor_ops::{
     TensorAddArgs, TensorCreateArgs, TensorGet2dArgs, TensorGetArgs, TensorInspectArgs,
@@ -973,5 +976,235 @@ impl TensorServer {
         self.tensors.lock().await.insert(store_name, tensor);
 
         Ok(CallToolResult::success(vec![Content::text(info)]))
+    }
+
+    // ── LLaMA inference tools ──────────────────────────────────
+
+    #[tool(description = "Load a LLaMA model from a GGUF file. Extracts the vocabulary and stores the model in server state for generation. Only one model can be loaded at a time.")]
+    async fn llama_load(
+        &self,
+        Parameters(args): Parameters<LlamaLoadArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = std::path::Path::new(&args.path);
+        let file = match std::fs::File::open(path) {
+            Ok(f) => f,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to open '{}': {}",
+                    args.path, e
+                ))]))
+            }
+        };
+
+        let reader = std::io::BufReader::new(file);
+        let mut gguf = match GgufFile::parse(reader) {
+            Ok(g) => g,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to parse GGUF: {}",
+                    e
+                ))]))
+            }
+        };
+
+        // Extract vocab before loading model (needs shared borrow of gguf)
+        let vocab = llama::extract_vocab(&gguf);
+        let vocab_len = vocab.len();
+
+        let model = match LlamaModel::from_gguf(&mut gguf) {
+            Ok(m) => m,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to load model: {}",
+                    e
+                ))]))
+            }
+        };
+
+        let info = format!(
+            "Model loaded from '{}':\n  dim={}, layers={}, heads={} (kv={}), vocab={}, ffn={}\n  head_dim={}, rms_eps={}\n  Vocabulary: {} tokens",
+            args.path,
+            model.config.dim,
+            model.config.n_layers,
+            model.config.n_heads,
+            model.config.n_kv_heads,
+            model.config.vocab_size,
+            model.config.ffn_dim,
+            model.config.head_dim,
+            model.config.rms_eps,
+            vocab_len,
+        );
+
+        *self.model.lock().await = Some(model);
+        *self.vocab.lock().await = vocab;
+
+        Ok(CallToolResult::success(vec![Content::text(info)]))
+    }
+
+    #[tool(description = "Generate text from the loaded LLaMA model. Provide either a text prompt (naive whitespace tokenization) or raw token_ids. Returns generated text and token IDs. Model must be loaded first with llama_load.")]
+    async fn llama_generate(
+        &self,
+        Parameters(args): Parameters<LlamaGenerateArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let model_guard = self.model.lock().await;
+        let model = match model_guard.as_ref() {
+            Some(m) => m,
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "No model loaded. Use llama_load first.",
+                )]))
+            }
+        };
+
+        let vocab = self.vocab.lock().await;
+
+        // Determine prompt tokens
+        let prompt_tokens = if let Some(ref ids) = args.token_ids {
+            ids.clone()
+        } else if let Some(ref text) = args.prompt {
+            if vocab.is_empty() {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "No vocabulary loaded. Cannot tokenize text prompt. Use token_ids instead.",
+                )]));
+            }
+            // Naive: look up each word in vocab, fall back to BOS token
+            let bos = 1usize;
+            let mut tokens = vec![bos];
+            for word in text.split_whitespace() {
+                if let Some(pos) = vocab.iter().position(|v| v == word) {
+                    tokens.push(pos);
+                }
+                // Skip unknown words (simplistic — real tokenizer would do subword)
+            }
+            tokens
+        } else {
+            // Default: just BOS
+            vec![1]
+        };
+
+        if prompt_tokens.is_empty() {
+            return Ok(CallToolResult::error(vec![Content::text(
+                "No prompt tokens. Provide prompt text or token_ids.",
+            )]));
+        }
+
+        // Validate token IDs
+        for &t in &prompt_tokens {
+            if t >= model.config.vocab_size {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Token ID {} exceeds vocab size {}",
+                    t, model.config.vocab_size
+                ))]));
+            }
+        }
+
+        let start = std::time::Instant::now();
+        let generated = model.generate(&prompt_tokens, args.max_tokens, args.temperature);
+        let elapsed = start.elapsed();
+
+        let text = if !vocab.is_empty() {
+            llama::decode_tokens(&vocab, &generated)
+        } else {
+            format!("{:?}", generated)
+        };
+
+        let tok_per_sec = generated.len() as f64 / elapsed.as_secs_f64();
+
+        let result = json!({
+            "text": text,
+            "token_ids": generated,
+            "prompt_tokens": prompt_tokens,
+            "num_generated": generated.len(),
+            "elapsed_ms": elapsed.as_millis(),
+            "tokens_per_sec": format!("{:.1}", tok_per_sec),
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    #[tool(description = "Inspect the currently loaded LLaMA model: shows config, architecture details, weight shapes, and vocabulary sample.")]
+    async fn llama_inspect(
+        &self,
+    ) -> Result<CallToolResult, McpError> {
+        let model_guard = self.model.lock().await;
+        let model = match model_guard.as_ref() {
+            Some(m) => m,
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    "No model loaded. Use llama_load first.",
+                )]))
+            }
+        };
+
+        let vocab = self.vocab.lock().await;
+        let cfg = &model.config;
+
+        let mut block_info = Vec::new();
+        for (i, block) in model.blocks.iter().enumerate() {
+            block_info.push(json!({
+                "layer": i,
+                "attn_q": block.attn_q.shape,
+                "attn_k": block.attn_k.shape,
+                "attn_v": block.attn_v.shape,
+                "attn_output": block.attn_output.shape,
+                "attn_norm": block.attn_norm.shape,
+                "ffn_gate": block.ffn_gate.shape,
+                "ffn_down": block.ffn_down.shape,
+                "ffn_up": block.ffn_up.shape,
+                "ffn_norm": block.ffn_norm.shape,
+            }));
+        }
+
+        // Sample some vocab entries
+        let vocab_sample: Vec<String> = vocab.iter().take(20).cloned().collect();
+        let vocab_end: Vec<String> = if vocab.len() > 20 {
+            vocab.iter().rev().take(5).rev().cloned().collect()
+        } else {
+            vec![]
+        };
+
+        // Count total parameters
+        let mut total_params: usize = model.token_embd.data.len() + model.output.data.len() + model.output_norm.data.len();
+        for block in &model.blocks {
+            total_params += block.attn_q.data.len()
+                + block.attn_k.data.len()
+                + block.attn_v.data.len()
+                + block.attn_output.data.len()
+                + block.attn_norm.data.len()
+                + block.ffn_gate.data.len()
+                + block.ffn_down.data.len()
+                + block.ffn_up.data.len()
+                + block.ffn_norm.data.len();
+        }
+
+        let result = json!({
+            "config": {
+                "dim": cfg.dim,
+                "n_layers": cfg.n_layers,
+                "n_heads": cfg.n_heads,
+                "n_kv_heads": cfg.n_kv_heads,
+                "vocab_size": cfg.vocab_size,
+                "ffn_dim": cfg.ffn_dim,
+                "head_dim": cfg.head_dim,
+                "rms_eps": cfg.rms_eps,
+            },
+            "total_parameters": total_params,
+            "total_parameters_human": format!("{:.1}M", total_params as f64 / 1_000_000.0),
+            "weight_shapes": {
+                "token_embd": model.token_embd.shape,
+                "output": model.output.shape,
+                "output_norm": model.output_norm.shape,
+            },
+            "blocks": block_info,
+            "vocab_size": vocab.len(),
+            "vocab_sample_first_20": vocab_sample,
+            "vocab_sample_last_5": vocab_end,
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
     }
 }

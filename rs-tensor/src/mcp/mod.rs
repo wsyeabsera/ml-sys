@@ -16,11 +16,14 @@ use rmcp::{
 };
 use tokio::sync::Mutex;
 
+use crate::llama::LlamaModel;
 use crate::tensor::Tensor;
 
 #[derive(Clone)]
 pub struct TensorServer {
     pub(crate) tensors: Arc<Mutex<HashMap<String, Tensor>>>,
+    pub(crate) model: Arc<Mutex<Option<LlamaModel>>>,
+    pub(crate) vocab: Arc<Mutex<Vec<String>>>,
     tool_router: ToolRouter<TensorServer>,
     prompt_router: PromptRouter<TensorServer>,
 }
@@ -29,6 +32,8 @@ impl TensorServer {
     pub fn new() -> Self {
         Self {
             tensors: Arc::new(Mutex::new(HashMap::new())),
+            model: Arc::new(Mutex::new(None)),
+            vocab: Arc::new(Mutex::new(Vec::new())),
             tool_router: Self::tool_router(),
             prompt_router: Self::prompt_router(),
         }

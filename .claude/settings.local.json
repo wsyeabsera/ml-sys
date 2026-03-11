@@ -57,7 +57,8 @@
       "Bash(curl -L -o /Users/yab/Projects/ml-sys/rs-tensor/model-files/stories15M-f32.gguf \"https://huggingface.co/klosax/tinyllamas-stories-gguf/resolve/main/tinyllamas-stories-15m-f32.gguf\" 2>&1)",
       "mcp__rs-tensor__gguf_inspect",
       "mcp__rs-tensor__gguf_load_tensor",
-      "Bash(cargo run:*)"
+      "Bash(cargo run:*)",
+      "Bash(ls -la /Users/yab/Projects/ml-sys/site/src/pages/*.tsx)"
     ]
   },
   "enableAllProjectMcpServers": true,
