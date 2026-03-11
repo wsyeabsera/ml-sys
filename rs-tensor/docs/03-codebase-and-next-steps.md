@@ -31,11 +31,12 @@ Next up is **Phase 2 — Autograd Engine**: build a scalar autograd engine (micr
 | `src/bin/main.rs` | Entry point: creates tensors, calls ops, prints. |
 | `src/bin/mcp.rs` | MCP server binary: wires `TensorServer` to stdio transport. |
 | `src/tensor.rs` | `Tensor` struct and methods (`new`, `add`, `mul`, `get_2d`, `get`, `reshape`, `transpose`). |
-| `src/lib.rs` | Library root: re-exports `tensor` and `mcp` modules. |
+| `src/autograd.rs` | Scalar autograd engine: `Value`, `Op`, operator overloads, `backward()`. |
+| `src/lib.rs` | Library root: re-exports `tensor`, `autograd`, and `mcp` modules. |
 | `src/mcp/mod.rs` | MCP server: tool implementations and `ServerHandler`. |
 | `src/mcp/tools/` | Argument structs for MCP tools. |
 | `docs/README.md` | This book’s table of contents and link to the roadmap. |
-| `docs/01-getting-started.md` … `04-mcp-server.md` | Phase 1 chapters. |
+| `docs/01-getting-started.md` … `05-autograd.md` | Learning book chapters. |
 | `docs/ml-rust-project.md` | **The roadmap**: phases, checklists, readings, notes. |
 
 ---
