@@ -34,11 +34,29 @@
       "Bash(npm install:*)",
       "Bash(cd /Users/yab/Projects/ml-sys/site/src && mkdir -p components/layout components/ui components/three components/viz pages data hooks lib && rm -f App.css)",
       "Bash(npx tsc:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "mcp__chrome-devtools__new_page",
+      "mcp__chrome-devtools__take_screenshot",
+      "mcp__chrome-devtools__list_console_messages",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__click",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__evaluate_script",
+      "Bash(kill %1 2>/dev/null; echo \"killed\")",
+      "Bash(pkill -f \"vite\" 2>/dev/null; echo \"done\")",
+      "Bash(wc -l /Users/yab/Projects/ml-sys/rs-tensor/src/*.rs | tail -1)",
+      "mcp__rs-tensor__mlp_forward",
+      "Bash(cd /Users/yab/Projects/ml-sys/rs-tensor && cargo run --example debug_attention 2>&1)",
+      "mcp__rs-tensor__attention_forward",
+      "Bash(wc -l /Users/yab/Projects/ml-sys/rs-tensor/src/*.rs)",
+      "Bash(ls -la /Users/yab/Projects/ml-sys/rs-tensor/src/ | grep \"\\\\.rs$\")"
     ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "rs-tensor"
-  ]
+  ],
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+  }
 }

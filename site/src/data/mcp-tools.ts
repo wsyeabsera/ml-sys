@@ -22,6 +22,8 @@ export const mcpTools: McpTool[] = [
   { name: "autograd_neuron", description: "Run single neuron: tanh(Σ(xi*wi) + bias)", category: "autograd", params: ["inputs", "weights", "bias"] },
   { name: "autograd_expr", description: "Build custom computation graph from ops", category: "autograd", params: ["values", "ops"] },
   { name: "autograd_neuron_tensor", description: "Run tensor layer: tanh(x @ w + b)", category: "autograd", params: ["x", "w", "b"] },
+  { name: "mlp_forward", description: "Run MLP forward+backward: stack of tanh(x@w+b) layers", category: "autograd", params: ["layers", "input"] },
+  { name: "attention_forward", description: "Scaled dot-product attention: softmax(QK^T/√d_k)V", category: "autograd", params: ["q", "k", "v"] },
 
   // Project tools
   { name: "read_file", description: "Read a project file (path-restricted)", category: "project", params: ["path"] },
@@ -30,6 +32,6 @@ export const mcpTools: McpTool[] = [
 
 export const categories = [
   { key: "tensor" as const, label: "Tensor Operations", count: 10 },
-  { key: "autograd" as const, label: "Autograd", count: 3 },
+  { key: "autograd" as const, label: "Autograd", count: 5 },
   { key: "project" as const, label: "Project", count: 2 },
 ];

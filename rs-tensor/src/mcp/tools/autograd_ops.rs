@@ -26,6 +26,45 @@ pub struct AutogradTensorLayerArgs {
     pub bias_shape: Vec<usize>,
 }
 
+/// A single layer definition for the MLP tool.
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct LayerDef {
+    /// Weight data as flat f32 array (row-major)
+    pub weights: Vec<f32>,
+    /// Bias data as flat f32 array
+    pub bias: Vec<f32>,
+    /// Number of input features
+    pub in_features: usize,
+    /// Number of output features
+    pub out_features: usize,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct MlpForwardArgs {
+    /// Input data as flat f32 array
+    pub input_data: Vec<f32>,
+    /// Input shape, e.g. [1, 2] for a single sample with 2 features
+    pub input_shape: Vec<usize>,
+    /// Layer definitions in order (first layer receives input, last layer produces output)
+    pub layers: Vec<LayerDef>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AttentionArgs {
+    /// Query data as flat f32 array
+    pub q_data: Vec<f32>,
+    /// Key data as flat f32 array
+    pub k_data: Vec<f32>,
+    /// Value data as flat f32 array
+    pub v_data: Vec<f32>,
+    /// Sequence length (number of tokens)
+    pub seq_len: usize,
+    /// Key/query dimension (d_k)
+    pub d_k: usize,
+    /// Value dimension (d_v). If omitted, defaults to d_k.
+    pub d_v: Option<usize>,
+}
+
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct AutogradExprArgs {
     /// Named scalar values, e.g. [["a", 2.0], ["b", -3.0]]

@@ -24,6 +24,10 @@ enum TensorOp {
     MatMul(TensorValue, TensorValue),
     /// tanh applied element-wise.
     Tanh(TensorValue),
+    /// Transpose (swap two dims).
+    Transpose(TensorValue, usize, usize),
+    /// Row-wise softmax.
+    Softmax(TensorValue),
     /// Sum all elements to a scalar.
     Sum(TensorValue),
 }
@@ -116,6 +120,45 @@ impl TensorValue {
         })))
     }
 
+    /// Transpose: swap two dimensions (tracked in the graph).
+    pub fn transpose(&self, dim0: usize, dim1: usize) -> TensorValue {
+        let result = self.data().transpose(dim0, dim1).unwrap();
+        TensorValue(Rc::new(RefCell::new(TensorValueData {
+            grad: Tensor::zeros(result.shape.clone()),
+            data: result,
+            op: TensorOp::Transpose(self.clone(), dim0, dim1),
+            label: format!("{}^T", self.label()),
+        })))
+    }
+
+    /// Row-wise softmax (2D only).
+    pub fn softmax(&self) -> TensorValue {
+        let result = self.data().softmax();
+        TensorValue(Rc::new(RefCell::new(TensorValueData {
+            grad: Tensor::zeros(result.shape.clone()),
+            data: result,
+            op: TensorOp::Softmax(self.clone()),
+            label: format!("softmax({})", self.label()),
+        })))
+    }
+
+    /// Scale every element by a scalar.
+    pub fn scale(&self, scalar: f32) -> TensorValue {
+        let result = self.data().scale(scalar);
+        TensorValue(Rc::new(RefCell::new(TensorValueData {
+            grad: Tensor::zeros(result.shape.clone()),
+            data: result,
+            op: TensorOp::Mul(
+                self.clone(),
+                TensorValue::new(
+                    Tensor::new(vec![scalar; self.data().data.len()], self.data().shape.clone()),
+                    "scalar",
+                ),
+            ),
+            label: format!("scale({})", self.label()),
+        })))
+    }
+
     /// Sum all elements to a scalar tensor (shape [1]).
     pub fn sum(&self) -> TensorValue {
         let result = self.data().sum();
@@ -194,6 +237,40 @@ impl TensorValue {
                     let a_grad = a.0.borrow().grad.add(&deriv.mul(&node_grad));
                     a.0.borrow_mut().grad = a_grad;
                 }
+                TensorOp::Transpose(a, dim0, dim1) => {
+                    // Transpose gradient: transpose grad back, then materialize
+                    // to contiguous layout since add() doesn't respect strides.
+                    let grad_transposed = node_grad.transpose(dim0, dim1).unwrap();
+                    let grad_contiguous = grad_transposed
+                        .reshape(grad_transposed.shape.clone())
+                        .unwrap();
+                    let a_grad = a.0.borrow().grad.add(&grad_contiguous);
+                    a.0.borrow_mut().grad = a_grad;
+                }
+                TensorOp::Softmax(a) => {
+                    // softmax backward: dx_ij = s_ij * (dout_ij - sum_j(dout_ij * s_ij))
+                    // Per row: dx = s * (dout - dot(dout, s))
+                    let s = node.data();
+                    let rows = s.shape[0];
+                    let cols = s.shape[1];
+                    let mut dx = vec![0.0f32; s.data.len()];
+
+                    for i in 0..rows {
+                        let start = i * cols;
+                        // dot(dout_row, s_row)
+                        let mut dot = 0.0f32;
+                        for j in 0..cols {
+                            dot += node_grad.data[start + j] * s.data[start + j];
+                        }
+                        for j in 0..cols {
+                            dx[start + j] = s.data[start + j] * (node_grad.data[start + j] - dot);
+                        }
+                    }
+
+                    let dx_tensor = Tensor::new(dx, s.shape.clone());
+                    let a_grad = a.0.borrow().grad.add(&dx_tensor);
+                    a.0.borrow_mut().grad = a_grad;
+                }
                 TensorOp::Sum(a) => {
                     // d(sum(x))/dx_i = 1 for all i
                     // grad is scalar (shape [1]), broadcast to input shape
@@ -224,7 +301,10 @@ impl TensorValue {
                 a.build_topo(topo, visited);
                 b.build_topo(topo, visited);
             }
-            TensorOp::Tanh(a) | TensorOp::Sum(a) => {
+            TensorOp::Transpose(a, _, _)
+            | TensorOp::Tanh(a)
+            | TensorOp::Softmax(a)
+            | TensorOp::Sum(a) => {
                 a.build_topo(topo, visited);
             }
         }

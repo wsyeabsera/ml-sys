@@ -214,6 +214,36 @@ impl Tensor {
         Tensor::new(result, vec![m, n])
     }
 
+    /// Row-wise softmax for 2D tensors: `softmax(x)[i,j] = exp(x[i,j]) / sum_j(exp(x[i,j]))`.
+    ///
+    /// Uses the max-subtraction trick for numerical stability:
+    /// subtract the row max before exponentiating to avoid overflow.
+    pub fn softmax(&self) -> Tensor {
+        assert_eq!(self.shape.len(), 2, "softmax requires 2D tensor");
+        let rows = self.shape[0];
+        let cols = self.shape[1];
+        let mut result = vec![0.0f32; rows * cols];
+
+        for i in 0..rows {
+            let row_start = i * cols;
+            // Max-subtraction trick
+            let row_max = (0..cols)
+                .map(|j| self.data[row_start + j])
+                .fold(f32::NEG_INFINITY, f32::max);
+
+            let mut sum_exp = 0.0f32;
+            for j in 0..cols {
+                let e = (self.data[row_start + j] - row_max).exp();
+                result[row_start + j] = e;
+                sum_exp += e;
+            }
+            for j in 0..cols {
+                result[row_start + j] /= sum_exp;
+            }
+        }
+        Tensor::new(result, self.shape.clone())
+    }
+
     /// Element-wise addition. Panics if shapes differ.
     pub fn add(&self, other: &Tensor) -> Tensor {
         assert_eq!(self.shape, other.shape, "shape mismatch for add");

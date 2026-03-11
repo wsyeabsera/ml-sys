@@ -74,17 +74,14 @@ export default function GradientFlow({
                 transition={{ delay: 0.1 }}
               >
                 {/* Node circle */}
-                <motion.circle
+                <circle
                   cx={node.x + ox}
                   cy={node.y + oy}
                   r={isActive ? 24 : 20}
                   fill="var(--color-surface-raised)"
                   stroke={nodeColors[node.type]}
                   strokeWidth={isActive ? 3 : 1.5}
-                  animate={{
-                    r: isActive ? 24 : 20,
-                    strokeWidth: isActive ? 3 : 1.5,
-                  }}
+                  style={{ transition: "r 0.2s, stroke-width 0.2s" }}
                 />
 
                 {/* Label */}

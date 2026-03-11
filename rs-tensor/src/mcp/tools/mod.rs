@@ -1,4 +1,5 @@
 pub mod autograd_ops;
+pub mod gguf_ops;
 pub mod project;
 pub mod tensor_ops;
 
@@ -13,10 +14,16 @@ use rmcp::{
 use serde_json::json;
 
 use super::TensorServer;
+use crate::attention::scaled_dot_product_attention;
 use crate::autograd::Value;
+use crate::gguf::GgufFile;
+use crate::mlp::{Layer, MLP};
 use crate::tensor::Tensor;
 use crate::tensor_value::TensorValue;
-use autograd_ops::{AutogradExprArgs, AutogradNeuronArgs, AutogradTensorLayerArgs};
+use autograd_ops::{
+    AttentionArgs, AutogradExprArgs, AutogradNeuronArgs, AutogradTensorLayerArgs, MlpForwardArgs,
+};
+use gguf_ops::{GgufInspectArgs, GgufLoadTensorArgs};
 use project::{CargoExecArgs, ReadFileArgs};
 use tensor_ops::{
     TensorAddArgs, TensorCreateArgs, TensorGet2dArgs, TensorGetArgs, TensorInspectArgs,
@@ -656,5 +663,315 @@ impl TensorServer {
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&result).unwrap(),
         )]))
+    }
+
+    #[tool(description = "Run a multi-layer perceptron (feedforward network) forward pass with backward. Each layer computes tanh(x @ w + b). Returns the output and gradients for all layer weights and biases.")]
+    async fn mlp_forward(
+        &self,
+        Parameters(args): Parameters<MlpForwardArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        // Validate input
+        let x_size: usize = args.input_shape.iter().product();
+        if args.input_data.len() != x_size {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "Input shape {:?} expects {} elements, got {}",
+                args.input_shape, x_size, args.input_data.len()
+            ))]));
+        }
+
+        if args.layers.is_empty() {
+            return Ok(CallToolResult::error(vec![Content::text(
+                "MLP must have at least one layer".to_string(),
+            )]));
+        }
+
+        // Validate each layer's dimensions
+        for (i, layer_def) in args.layers.iter().enumerate() {
+            let expected_w = layer_def.in_features * layer_def.out_features;
+            if layer_def.weights.len() != expected_w {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Layer {} weights: expected {} elements ({}x{}), got {}",
+                    i, expected_w, layer_def.in_features, layer_def.out_features, layer_def.weights.len()
+                ))]));
+            }
+            if layer_def.bias.len() != layer_def.out_features {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Layer {} bias: expected {} elements, got {}",
+                    i, layer_def.out_features, layer_def.bias.len()
+                ))]));
+            }
+        }
+
+        // Validate layer connectivity
+        let first_in = args.layers[0].in_features;
+        if args.input_shape.len() == 2 && args.input_shape[1] != first_in {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "Input has {} features but first layer expects {}",
+                args.input_shape[1], first_in
+            ))]));
+        }
+        for i in 1..args.layers.len() {
+            if args.layers[i - 1].out_features != args.layers[i].in_features {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Layer {} outputs {} features but layer {} expects {}",
+                    i - 1, args.layers[i - 1].out_features, i, args.layers[i].in_features
+                ))]));
+            }
+        }
+
+        // Build and run the MLP (all synchronous — no Rc across await)
+        let layers: Vec<Layer> = args
+            .layers
+            .iter()
+            .enumerate()
+            .map(|(i, def)| {
+                Layer::new(
+                    def.weights.clone(),
+                    def.bias.clone(),
+                    def.in_features,
+                    def.out_features,
+                    &format!("L{}", i),
+                )
+            })
+            .collect();
+
+        let mlp = MLP::new(layers);
+        let x = TensorValue::new(Tensor::new(args.input_data, args.input_shape), "x");
+        let out = mlp.forward(&x);
+        out.backward();
+
+        // Collect results
+        let mut layer_results = Vec::new();
+        for (i, layer) in mlp.layers.iter().enumerate() {
+            layer_results.push(json!({
+                "layer": i,
+                "w": {
+                    "shape": layer.w.data().shape,
+                    "data": layer.w.data().data,
+                    "grad": layer.w.grad().data,
+                },
+                "b": {
+                    "shape": layer.b.data().shape,
+                    "data": layer.b.data().data,
+                    "grad": layer.b.grad().data,
+                },
+            }));
+        }
+
+        let result = json!({
+            "output": {
+                "data": out.data().data,
+                "shape": out.data().shape,
+            },
+            "input_grad": x.grad().data,
+            "layers": layer_results,
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    // ── Attention tools ─────────────────────────────────────────
+
+    #[tool(description = "Run scaled dot-product attention: softmax(Q @ K^T / sqrt(d_k)) @ V. Returns the output, attention weights, and gradients for Q, K, V.")]
+    async fn attention_forward(
+        &self,
+        Parameters(args): Parameters<AttentionArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let d_v = args.d_v.unwrap_or(args.d_k);
+
+        // Validate sizes
+        let q_expected = args.seq_len * args.d_k;
+        let k_expected = args.seq_len * args.d_k;
+        let v_expected = args.seq_len * d_v;
+
+        if args.q_data.len() != q_expected {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "Q: expected {} elements ({}x{}), got {}",
+                q_expected, args.seq_len, args.d_k, args.q_data.len()
+            ))]));
+        }
+        if args.k_data.len() != k_expected {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "K: expected {} elements ({}x{}), got {}",
+                k_expected, args.seq_len, args.d_k, args.k_data.len()
+            ))]));
+        }
+        if args.v_data.len() != v_expected {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "V: expected {} elements ({}x{}), got {}",
+                v_expected, args.seq_len, d_v, args.v_data.len()
+            ))]));
+        }
+
+        let q = TensorValue::new(
+            Tensor::new(args.q_data, vec![args.seq_len, args.d_k]),
+            "Q",
+        );
+        let k = TensorValue::new(
+            Tensor::new(args.k_data, vec![args.seq_len, args.d_k]),
+            "K",
+        );
+        let v = TensorValue::new(
+            Tensor::new(args.v_data, vec![args.seq_len, d_v]),
+            "V",
+        );
+
+        let (output, weights) = scaled_dot_product_attention(&q, &k, &v);
+
+        // Run backward from sum of output to get gradients
+        let loss = output.sum();
+        loss.backward();
+
+        let result = json!({
+            "output": {
+                "data": output.data().data,
+                "shape": output.data().shape,
+            },
+            "attention_weights": {
+                "data": weights.data().data,
+                "shape": weights.data().shape,
+            },
+            "Q_grad": q.grad().data,
+            "K_grad": k.grad().data,
+            "V_grad": v.grad().data,
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    // ── GGUF tools ──────────────────────────────────────────────
+
+    #[tool(description = "Inspect a GGUF model file: shows version, metadata, architecture, and lists all tensors with shapes and dtypes.")]
+    async fn gguf_inspect(
+        &self,
+        Parameters(args): Parameters<GgufInspectArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = std::path::Path::new(&args.path);
+        let file = match std::fs::File::open(path) {
+            Ok(f) => f,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to open '{}': {}",
+                    args.path, e
+                ))]))
+            }
+        };
+
+        let reader = std::io::BufReader::new(file);
+        let gguf = match GgufFile::parse(reader) {
+            Ok(g) => g,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to parse GGUF: {}",
+                    e
+                ))]))
+            }
+        };
+
+        let summary = gguf.summary();
+        let tensors = gguf.list_tensors();
+
+        // Show key metadata
+        let mut meta_lines = Vec::new();
+        let interesting_keys = [
+            "general.architecture",
+            "general.name",
+            "general.file_type",
+            "general.quantization_version",
+        ];
+        for key in &interesting_keys {
+            if let Some(val) = gguf.metadata.get(*key) {
+                meta_lines.push(format!("  {}: {:?}", key, val));
+            }
+        }
+        // Also show any architecture-specific keys
+        if let Some(arch) = gguf
+            .metadata
+            .get("general.architecture")
+            .and_then(|v| v.as_str())
+        {
+            for (key, val) in &gguf.metadata {
+                if key.starts_with(&format!("{}.", arch)) {
+                    meta_lines.push(format!("  {}: {:?}", key, val));
+                }
+            }
+        }
+
+        let tensor_list = if tensors.len() > 50 {
+            let mut lines: Vec<String> = tensors.iter().take(25).cloned().collect();
+            lines.push(format!("  ... ({} more tensors)", tensors.len() - 50));
+            lines.extend(tensors.iter().rev().take(25).rev().cloned());
+            lines
+        } else {
+            tensors
+        };
+
+        let result = format!(
+            "{}\n\nMetadata:\n{}\n\nTensors ({}):\n{}",
+            summary,
+            meta_lines.join("\n"),
+            tensor_list.len(),
+            tensor_list
+                .iter()
+                .map(|t| format!("  {}", t))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+
+        Ok(CallToolResult::success(vec![Content::text(result)]))
+    }
+
+    #[tool(description = "Load a tensor from a GGUF file into the tensor store. Supports F32 and F16 tensors (F16 is converted to F32).")]
+    async fn gguf_load_tensor(
+        &self,
+        Parameters(args): Parameters<GgufLoadTensorArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let path = std::path::Path::new(&args.path);
+        let file = match std::fs::File::open(path) {
+            Ok(f) => f,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to open '{}': {}",
+                    args.path, e
+                ))]))
+            }
+        };
+
+        let reader = std::io::BufReader::new(file);
+        let mut gguf = match GgufFile::parse(reader) {
+            Ok(g) => g,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to parse GGUF: {}",
+                    e
+                ))]))
+            }
+        };
+
+        let tensor = match gguf.load_tensor(&args.tensor_name) {
+            Ok(t) => t,
+            Err(e) => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Failed to load tensor '{}': {}",
+                    args.tensor_name, e
+                ))]))
+            }
+        };
+
+        let store_name = args.store_as.unwrap_or(args.tensor_name.clone());
+        let info = format!(
+            "Loaded '{}' from GGUF -> '{}': shape={:?}, {} elements",
+            args.tensor_name,
+            store_name,
+            tensor.shape,
+            tensor.data.len()
+        );
+        self.tensors.lock().await.insert(store_name, tensor);
+
+        Ok(CallToolResult::success(vec![Content::text(info)]))
     }
 }
