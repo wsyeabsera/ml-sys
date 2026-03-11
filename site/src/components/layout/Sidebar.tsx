@@ -11,6 +11,8 @@ const chapters = [
   { path: "/ch/6", num: 6, title: "Layers & MLPs", icon: "06" },
   { path: "/ch/7", num: 7, title: "Attention", icon: "07" },
   { path: "/ch/8", num: 8, title: "GGUF Model Files", icon: "08" },
+  { path: "/ch/9", num: 9, title: "Transformer Blocks", icon: "09" },
+  { path: "/ch/10", num: 10, title: "Loading a Real Model", icon: "10" },
 ];
 
 function SunIcon() {

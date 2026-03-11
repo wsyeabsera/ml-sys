@@ -9,6 +9,8 @@ const chapters = [
   { path: "/ch/6", title: "Layers & MLPs" },
   { path: "/ch/7", title: "Attention" },
   { path: "/ch/8", title: "GGUF Model Files" },
+  { path: "/ch/9", title: "Transformer Building Blocks" },
+  { path: "/ch/10", title: "Loading a Real Model" },
 ];
 
 export default function ChapterNav({ current }: { current: number }) {

@@ -54,14 +54,14 @@ export const phases: Phase[] = [
   {
     num: 3,
     title: "Tiny Inference Engine",
-    status: "in-progress",
+    status: "done",
     description:
       "Feedforward network, attention mechanism, and GGUF model loading.",
     tasks: [
       { label: "Feedforward layer (MLP)", status: "done" },
       { label: "Scaled dot-product attention", status: "done" },
       { label: "GGUF format loader", status: "done" },
-      { label: "Token-by-token generation", status: "planned" },
+      { label: "Token-by-token generation", status: "done" },
     ],
     readings: [
       "Attention Is All You Need (Vaswani et al.)",
