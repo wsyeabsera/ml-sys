@@ -4,7 +4,7 @@
 //! with a flat `data` buffer and a `shape` that describes the dimensions.
 //!
 //! For a walkthrough of the concepts (ownership, iterators, `Debug`, etc.),
-//! see `docs/learning.md` in the project root.
+//! see the learning book in `docs/` (start with `docs/README.md`).
 
 // Lets us use `println!("{:?}", tensor)` — the compiler generates a Debug impl.
 #[derive(Debug)]

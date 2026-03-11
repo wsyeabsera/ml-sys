@@ -17,5 +17,4 @@ We build docs as we go so the project doubles as a learning resource.
 - **API docs** (from code comments): from the `rs-tensor` directory run  
   `cargo doc --open`  
   to generate and open the API docs in the browser.
-- **Learning guide** (concepts and “why”): [rs-tensor/docs/learning.md](rs-tensor/docs/learning.md)  
-  explains ownership, iterators, `Debug`, and how the tensor code works for junior devs.
+- **Learning book** (chapters and “why”): [rs-tensor/docs/README.md](rs-tensor/docs/README.md) is the table of contents; chapters 1–7 walk through ownership, iterators, `Debug`, and the codebase for junior devs.

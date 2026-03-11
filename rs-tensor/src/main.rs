@@ -2,7 +2,7 @@
 //!
 //! A small tensor library for learning Rust. The API is documented in the
 //! generated docs; for a **concept-level walkthrough** (ownership, iterators,
-//! why we use `Debug`, etc.), see `docs/learning.md` in the project root.
+//! why we use `Debug`, etc.), see the learning book in `docs/` (start with `docs/README.md`).
 
 mod tensor;
 
