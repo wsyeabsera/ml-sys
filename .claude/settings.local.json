@@ -58,7 +58,10 @@
       "mcp__rs-tensor__gguf_inspect",
       "mcp__rs-tensor__gguf_load_tensor",
       "Bash(cargo run:*)",
-      "Bash(ls -la /Users/yab/Projects/ml-sys/site/src/pages/*.tsx)"
+      "Bash(ls -la /Users/yab/Projects/ml-sys/site/src/pages/*.tsx)",
+      "mcp__rs-tensor__llama_load",
+      "mcp__rs-tensor__llama_inspect",
+      "mcp__rs-tensor__llama_generate"
     ]
   },
   "enableAllProjectMcpServers": true,
