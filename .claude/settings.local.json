@@ -33,7 +33,8 @@
       "Bash(cd /Users/yab/Projects/ml-sys/site && npm install 2>&1)",
       "Bash(npm install:*)",
       "Bash(cd /Users/yab/Projects/ml-sys/site/src && mkdir -p components/layout components/ui components/three components/viz pages data hooks lib && rm -f App.css)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

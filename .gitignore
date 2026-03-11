@@ -38,3 +38,7 @@ venv/
 *.log
 tmp/
 temp/
+
+# Site
+site/node_modules/
+site/dist/
