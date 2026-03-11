@@ -86,30 +86,93 @@ After backward, each weight has a gradient telling you: "to increase the output,
 
 ## MCP tools
 
-The autograd engine is exposed through two MCP tools:
+The autograd engine is exposed through three MCP tools:
+
+### Scalar tools
 
 | Tool | What it does |
 |------|-------------|
 | `autograd_neuron` | Run a single neuron (`tanh(sum(xi*wi) + bias)`) and return output + all gradients. |
 | `autograd_expr` | Build a custom computation graph from named values and operations, run backward, return all gradients. |
 
+### Tensor-level tools
+
+| Tool | What it does |
+|------|-------------|
+| `autograd_neuron_tensor` | Run a full layer: `tanh(x @ w + b)` with tensor inputs. Returns output tensor and gradient tensors for x, w, and b. |
+
 ### Design choice: why not store `Value` in the server?
 
 Unlike tensors, `Value` uses `Rc<RefCell<...>>` which isn't `Send` — it can't be held in a `tokio::Mutex` across `.await` points. So instead of persisting autograd state between tool calls, each tool builds the graph, runs forward + backward, and returns everything in one shot. This is actually cleaner: the computation graph is ephemeral by nature.
+
+---
+
+## Tensor-level autograd: `TensorValue`
+
+The scalar engine works, but real neural networks operate on tensors (matrices of weights, batches of inputs). So we extended the same pattern to tensors.
+
+`TensorValue` wraps a `Tensor` the same way `Value` wraps an `f32`:
+
+```rust
+pub struct TensorValue(Rc<RefCell<TensorValueData>>);
+
+struct TensorValueData {
+    data: Tensor,       // the tensor (forward result)
+    grad: Tensor,       // gradient tensor (same shape, filled by backward)
+    op: TensorOp,       // what produced this
+    label: String,
+}
+```
+
+### Supported tensor operations and their gradients
+
+| Operation | Forward | Backward (gradient rules) |
+|-----------|---------|--------------------------|
+| `a.add(b)` | element-wise `a + b` | `a.grad += grad`, `b.grad += grad` |
+| `a.mul(b)` | element-wise `a * b` | `a.grad += b.data * grad`, `b.grad += a.data * grad` |
+| `a.matmul(b)` | matrix multiply `a @ b` | `a.grad += grad @ b^T`, `b.grad += a^T @ grad` |
+| `a.tanh()` | element-wise tanh | `a.grad += (1 - out^2) * grad` |
+| `a.sum()` | sum to scalar | `a.grad += broadcast(grad)` |
+
+### The matmul gradient
+
+The matmul gradient is the most interesting. If `c = a @ b` where `a` is `[M,K]` and `b` is `[K,N]`:
+- To get `a`'s gradient: `grad @ b^T` — multiply the incoming gradient by `b` transposed
+- To get `b`'s gradient: `a^T @ grad` — multiply `a` transposed by the incoming gradient
+
+This is why we needed `transpose` and `matmul` on `Tensor` before building this.
+
+### A neural network layer
+
+With `TensorValue` you can build a real layer:
+
+```rust
+let x = TensorValue::new(Tensor::new(vec![1.0, 2.0], vec![1, 2]), "x");
+let w = TensorValue::new(Tensor::new(vec![0.5, -0.5], vec![2, 1]), "w");
+let b = TensorValue::new(Tensor::new(vec![0.1], vec![1, 1]), "b");
+
+let out = x.matmul(&w).add(&b).tanh();
+out.backward();
+// w.grad() and b.grad() now tell you how to update the weights
+```
 
 ## Where the code lives
 
 | File | Role |
 |------|------|
-| `src/autograd.rs` | `Value` struct, `Op` enum, operator overloads, `backward()`, tests. |
-| `src/mcp/tools/autograd_ops.rs` | Argument structs for autograd MCP tools. |
-| `src/mcp/tools/mod.rs` | Tool implementations (`autograd_neuron`, `autograd_expr`). |
+| `src/autograd.rs` | Scalar `Value`, `Op` enum, operator overloads, `backward()`, tests. |
+| `src/tensor_value.rs` | Tensor-level `TensorValue`, `TensorOp`, backward with matmul gradients, tests. |
+| `src/tensor.rs` | `Tensor` with `matmul`, `zeros`, `ones`, `sum`, `scale`. |
+| `src/mcp/tools/autograd_ops.rs` | Argument structs for autograd MCP tools (`AutogradNeuronArgs`, `AutogradExprArgs`, `AutogradTensorLayerArgs`). |
+| `src/mcp/tools/mod.rs` | Tool implementations (`autograd_neuron`, `autograd_expr`, `autograd_neuron_tensor`). |
 
 ## What's next
 
-The remaining Phase 2 items:
+Phase 2 is complete. Next is **Phase 3 — Tiny Inference Engine**:
 
-1. **Extend to tensor-level gradients** — make `Tensor` operations track their computation graph so you can backprop through tensor ops (add, mul, matmul) rather than just scalars.
+1. **Feedforward network inference** — stack multiple layers, run forward pass
+2. **Attention mechanism from scratch** — the core of transformers
+3. **GGUF model loading** — load a real model and run it
 
 ---
 

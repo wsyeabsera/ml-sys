@@ -75,3 +75,13 @@ pub struct TensorInspectArgs {
     /// Name of the tensor to inspect
     pub name: String,
 }
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct TensorMatmulArgs {
+    /// Name of the first tensor (2D, shape [M, K])
+    pub a: String,
+    /// Name of the second tensor (2D, shape [K, N])
+    pub b: String,
+    /// Name for the result tensor (shape [M, N])
+    pub result_name: String,
+}

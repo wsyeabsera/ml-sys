@@ -37,7 +37,10 @@ Build a scalar autograd engine (micrograd-style), then extend to tensors.
 - [x] Scalar `Value` with `+`, `*`, `tanh` — `Rc<RefCell<ValueData>>` for shared graph nodes
 - [x] Backprop through a computation graph — topological sort + reverse walk with chain rule
 - [x] MCP tools: `autograd_neuron` (single neuron forward+backward), `autograd_expr` (custom expressions)
-- [ ] Extend to tensor-level gradients
+- [x] Tensor-level autograd: `TensorValue` with add, mul, matmul, tanh, sum + backward
+- [x] Matrix multiplication on `Tensor` (naive triple-loop, 2D only)
+- [x] Helper ops: `zeros`, `ones`, `sum`, `scale` on `Tensor`
+- [x] MCP tools: `tensor_matmul`, `autograd_neuron_tensor` (tensor-level forward+backward)
 
 **Reading:** [Karpathy's micrograd video](https://www.youtube.com/watch?v=VMj-3S1tku0)
 

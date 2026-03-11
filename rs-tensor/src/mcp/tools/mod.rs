@@ -15,11 +15,12 @@ use serde_json::json;
 use super::TensorServer;
 use crate::autograd::Value;
 use crate::tensor::Tensor;
-use autograd_ops::{AutogradExprArgs, AutogradNeuronArgs};
+use crate::tensor_value::TensorValue;
+use autograd_ops::{AutogradExprArgs, AutogradNeuronArgs, AutogradTensorLayerArgs};
 use project::{CargoExecArgs, ReadFileArgs};
 use tensor_ops::{
     TensorAddArgs, TensorCreateArgs, TensorGet2dArgs, TensorGetArgs, TensorInspectArgs,
-    TensorMulArgs, TensorReshapeArgs, TensorTransposeArgs,
+    TensorMatmulArgs, TensorMulArgs, TensorReshapeArgs, TensorTransposeArgs,
 };
 
 #[tool_router(vis = "pub(crate)")]
@@ -124,6 +125,55 @@ impl TensorServer {
         let info = format!(
             "tensor_mul('{}', '{}') -> '{}': shape={:?}, data={:?}",
             args.a, args.b, args.result_name, result.shape, result.data
+        );
+        drop(store);
+        self.tensors.lock().await.insert(args.result_name, result);
+        Ok(CallToolResult::success(vec![Content::text(info)]))
+    }
+
+    #[tool(description = "Matrix multiply two 2D tensors: [M,K] x [K,N] -> [M,N]. Inner dimensions must match.")]
+    async fn tensor_matmul(
+        &self,
+        Parameters(args): Parameters<TensorMatmulArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        let a = match store.get(&args.a) {
+            Some(t) => t,
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Tensor '{}' not found",
+                    args.a
+                ))]))
+            }
+        };
+        let b = match store.get(&args.b) {
+            Some(t) => t,
+            None => {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "Tensor '{}' not found",
+                    args.b
+                ))]))
+            }
+        };
+
+        if a.shape.len() != 2 || b.shape.len() != 2 {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "Both tensors must be 2D. Got shapes {:?} and {:?}",
+                a.shape, b.shape
+            ))]));
+        }
+
+        if a.shape[1] != b.shape[0] {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "Inner dimensions must match: {}x{} vs {}x{}",
+                a.shape[0], a.shape[1], b.shape[0], b.shape[1]
+            ))]));
+        }
+
+        let result = a.matmul(b);
+        let info = format!(
+            "matmul('{}' {:?}, '{}' {:?}) -> '{}': shape={:?}, data={:?}",
+            args.a, a.shape, args.b, b.shape, args.result_name, result.shape, result.data
         );
         drop(store);
         self.tensors.lock().await.insert(args.result_name, result);
@@ -537,6 +587,74 @@ impl TensorServer {
 
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&json!({ "values": results })).unwrap(),
+        )]))
+    }
+
+    // ── Tensor-level autograd tools ─────────────────────────────
+
+    #[tool(description = "Run a tensor-level neural network layer: out = tanh(x @ w + b). Returns output and gradients for x, w, and b. Uses TensorValue autograd for matrix operations.")]
+    async fn autograd_neuron_tensor(
+        &self,
+        Parameters(args): Parameters<AutogradTensorLayerArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        // Validate shapes
+        let x_size: usize = args.input_shape.iter().product();
+        let w_size: usize = args.weight_shape.iter().product();
+        let b_size: usize = args.bias_shape.iter().product();
+
+        if args.input_data.len() != x_size {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "Input shape {:?} expects {} elements, got {}",
+                args.input_shape, x_size, args.input_data.len()
+            ))]));
+        }
+        if args.weight_data.len() != w_size {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "Weight shape {:?} expects {} elements, got {}",
+                args.weight_shape, w_size, args.weight_data.len()
+            ))]));
+        }
+        if args.bias_data.len() != b_size {
+            return Ok(CallToolResult::error(vec![Content::text(format!(
+                "Bias shape {:?} expects {} elements, got {}",
+                args.bias_shape, b_size, args.bias_data.len()
+            ))]));
+        }
+
+        // Build TensorValues and run forward + backward (all synchronous, no Rc across await)
+        let x = TensorValue::new(Tensor::new(args.input_data, args.input_shape), "x");
+        let w = TensorValue::new(Tensor::new(args.weight_data, args.weight_shape), "w");
+        let b = TensorValue::new(Tensor::new(args.bias_data, args.bias_shape), "b");
+
+        let xw = x.matmul(&w);
+        let pre = xw.add(&b);
+        let out = pre.tanh();
+        out.backward();
+
+        let result = json!({
+            "output": {
+                "data": out.data().data,
+                "shape": out.data().shape,
+            },
+            "x": {
+                "data": x.data().data,
+                "shape": x.data().shape,
+                "grad": x.grad().data,
+            },
+            "w": {
+                "data": w.data().data,
+                "shape": w.data().shape,
+                "grad": w.grad().data,
+            },
+            "b": {
+                "data": b.data().data,
+                "shape": b.data().shape,
+                "grad": b.grad().data,
+            },
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
         )]))
     }
 }

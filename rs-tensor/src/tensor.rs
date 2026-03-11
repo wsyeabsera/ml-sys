@@ -6,7 +6,7 @@
 //! For a walkthrough of the concepts (ownership, iterators, strides, etc.),
 //! see the learning book in `docs/` (start with `docs/README.md`).
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Tensor {
     /// Flattened element storage (row-major). All elements in one `Vec`.
     pub data: Vec<f32>,
@@ -121,7 +121,7 @@ impl Tensor {
     }
 
     /// Check if the tensor's strides match contiguous row-major layout.
-    fn is_contiguous(&self) -> bool {
+    pub fn is_contiguous(&self) -> bool {
         self.strides == Self::compute_strides(&self.shape)
     }
 
@@ -152,6 +152,66 @@ impl Tensor {
             }
         }
         result
+    }
+
+    /// Create a tensor filled with zeros.
+    pub fn zeros(shape: Vec<usize>) -> Self {
+        let size: usize = shape.iter().product();
+        Tensor::new(vec![0.0; size], shape)
+    }
+
+    /// Create a tensor filled with ones.
+    pub fn ones(shape: Vec<usize>) -> Self {
+        let size: usize = shape.iter().product();
+        Tensor::new(vec![1.0; size], shape)
+    }
+
+    /// Sum all elements into a scalar (1-element tensor with shape [1]).
+    pub fn sum(&self) -> Tensor {
+        let total: f32 = self.data.iter().sum();
+        Tensor::new(vec![total], vec![1])
+    }
+
+    /// Scale every element by a scalar value.
+    pub fn scale(&self, scalar: f32) -> Tensor {
+        let data = self.data.iter().map(|x| x * scalar).collect();
+        Tensor::new(data, self.shape.clone())
+    }
+
+    /// Matrix multiplication for 2D tensors: [M, K] x [K, N] → [M, N].
+    ///
+    /// Uses the naive triple-loop algorithm. Both tensors must be 2D
+    /// and the inner dimensions must match.
+    pub fn matmul(&self, other: &Tensor) -> Tensor {
+        assert_eq!(self.shape.len(), 2, "matmul requires 2D tensors");
+        assert_eq!(other.shape.len(), 2, "matmul requires 2D tensors");
+        let (m, k1) = (self.shape[0], self.shape[1]);
+        let (k2, n) = (other.shape[0], other.shape[1]);
+        assert_eq!(k1, k2, "matmul inner dimensions must match: {} vs {}", k1, k2);
+
+        // Ensure both tensors are contiguous for simple indexing
+        let a_data = if self.is_contiguous() {
+            &self.data
+        } else {
+            &self.to_contiguous_data()
+        };
+        let b_data = if other.is_contiguous() {
+            &other.data
+        } else {
+            &other.to_contiguous_data()
+        };
+
+        let mut result = vec![0.0f32; m * n];
+        for i in 0..m {
+            for j in 0..n {
+                let mut sum = 0.0f32;
+                for p in 0..k1 {
+                    sum += a_data[i * k1 + p] * b_data[p * n + j];
+                }
+                result[i * n + j] = sum;
+            }
+        }
+        Tensor::new(result, vec![m, n])
     }
 
     /// Element-wise addition. Panics if shapes differ.

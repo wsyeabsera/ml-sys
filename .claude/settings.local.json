@@ -23,7 +23,17 @@
       "mcp__rs-tensor__tensor_transpose",
       "Bash(cd /Users/yab/Projects/ml-sys/rs-tensor && cargo test --lib autograd 2>&1)",
       "mcp__rs-tensor__autograd_neuron",
-      "mcp__rs-tensor__autograd_expr"
+      "mcp__rs-tensor__autograd_expr",
+      "Bash(cargo test:*)",
+      "mcp__rs-tensor__tensor_matmul",
+      "mcp__rs-tensor__autograd_neuron_tensor",
+      "Bash(find /Users/yab/Projects/ml-sys/rs-tensor -maxdepth 2 -type f | grep -E \"\\\\.\\(rs|toml|json\\)$\" | sort)",
+      "Bash(find /Users/yab/Projects/ml-sys -name \"package.json\" -o -name \"*.tsx\" -o -name \"*.jsx\" -o -name \"*.html\" 2>/dev/null | head -20)",
+      "Bash(npm create:*)",
+      "Bash(cd /Users/yab/Projects/ml-sys/site && npm install 2>&1)",
+      "Bash(npm install:*)",
+      "Bash(cd /Users/yab/Projects/ml-sys/site/src && mkdir -p components/layout components/ui components/three components/viz pages data hooks lib && rm -f App.css)",
+      "Bash(npx tsc:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

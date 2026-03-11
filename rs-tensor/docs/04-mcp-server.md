@@ -34,15 +34,22 @@ Claude Code  ──stdin──▸  mcp binary  ──▸  TensorServer (tools + 
 | `tensor_get` | Get a single element by N-dimensional indices using strides. |
 | `tensor_reshape` | Reshape a tensor to a new shape. Product must match element count. |
 | `tensor_transpose` | Transpose by swapping two dimensions. Zero-copy: only swaps shape and strides. |
+| `tensor_matmul` | Matrix multiply two 2D tensors: `[M,K] x [K,N] -> [M,N]`. Inner dimensions must match. |
 | `tensor_inspect` | Return a tensor's shape, strides, data, and element count as JSON. |
 | `tensor_list` | List all tensors currently in memory with their shapes. |
 
-### Autograd tools
+### Autograd tools — scalar
 
 | Tool | What it does |
 |------|-------------|
 | `autograd_neuron` | Run a single neuron: `tanh(sum(xi*wi) + bias)`. Returns output and gradients for all inputs, weights, and bias. |
 | `autograd_expr` | Build a custom computation graph from named values and operations (`add`, `mul`, `tanh`), run backward, return all values with gradients. |
+
+### Autograd tools — tensor-level
+
+| Tool | What it does |
+|------|-------------|
+| `autograd_neuron_tensor` | Run a tensor-level neural network layer: `out = tanh(x @ w + b)`. Takes input, weight, and bias tensors with shapes, runs forward + backward, returns output and all gradients. Uses `TensorValue` autograd with matrix operations. |
 
 ### Project tools
 
@@ -84,16 +91,15 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 
 You should see a JSON response with `protocolVersion`, `capabilities`, and `serverInfo`.
 
-## What's next for the MCP server
+## The pattern for adding new tools
 
-As we build more tensor operations (Phase 1 and beyond), we'll expose them as tools:
+Every new operation follows the same path:
 
-| Future tool | When | Why |
-|-------------|------|-----|
-| `tensor_matmul` | Phase 2+ | Matrix multiplication — needed for autograd and inference. |
-| Tensor-level autograd | Phase 2 (in progress) | Extend backward to work on tensor operations, not just scalars. |
-
-The pattern is: implement the operation in `tensor.rs`, then add a thin MCP wrapper in `mcp/tools/mod.rs` with an args struct in `mcp/tools/tensor_ops.rs`.
+1. Implement the operation in the library (`tensor.rs`, `tensor_value.rs`, etc.)
+2. Add an args struct in `mcp/tools/tensor_ops.rs` or `mcp/tools/autograd_ops.rs`
+3. Add a tool method in `mcp/tools/mod.rs`
+4. Rebuild the binary: `cargo build --bin mcp`
+5. Reconnect the MCP server in Claude Code
 
 ---
 

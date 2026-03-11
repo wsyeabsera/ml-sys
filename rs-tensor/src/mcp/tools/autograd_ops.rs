@@ -11,6 +11,22 @@ pub struct AutogradNeuronArgs {
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+pub struct AutogradTensorLayerArgs {
+    /// Input data as flat f32 array
+    pub input_data: Vec<f32>,
+    /// Input shape, e.g. [1, 2] for a 1x2 row vector
+    pub input_shape: Vec<usize>,
+    /// Weight data as flat f32 array
+    pub weight_data: Vec<f32>,
+    /// Weight shape, e.g. [2, 1] for a 2x1 matrix
+    pub weight_shape: Vec<usize>,
+    /// Bias data as flat f32 array
+    pub bias_data: Vec<f32>,
+    /// Bias shape, e.g. [1, 1]
+    pub bias_shape: Vec<usize>,
+}
+
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct AutogradExprArgs {
     /// Named scalar values, e.g. [["a", 2.0], ["b", -3.0]]
     pub values: Vec<(String, f32)>,
