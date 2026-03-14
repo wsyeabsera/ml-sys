@@ -76,6 +76,10 @@ export function useRepl() {
             const result = await callTool(tool, args);
             if (result.ok && result.result) {
               output = result.result.content.map((c) => c.text).join("\n");
+              // MCP tool returned an error (e.g., "Tensor not found", shape mismatch)
+              if (result.isToolError) {
+                isError = true;
+              }
             } else {
               output = result.error ?? "Unknown error";
               isError = true;

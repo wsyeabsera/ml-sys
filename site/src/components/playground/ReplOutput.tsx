@@ -82,7 +82,14 @@ export default function ReplOutput({ output, isError }: ReplOutputProps) {
 
     case "error":
       return (
-        <pre className="whitespace-pre-wrap text-xs p-3 rounded-lg bg-red-500/10 text-[var(--color-accent-rose)] border-l-2 border-red-500">
+        <pre
+          className="whitespace-pre-wrap text-xs p-3 rounded-lg border-l-2"
+          style={{
+            backgroundColor: "rgba(244, 63, 94, 0.15)",
+            color: "#f43f5e",
+            borderLeftColor: "#f43f5e",
+          }}
+        >
           {output}
         </pre>
       );

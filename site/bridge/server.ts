@@ -65,7 +65,8 @@ io.on("connection", async (socket) => {
     try {
       const client = await ensureMcp();
       const result = await client.callTool({ name: tool, arguments: args });
-      ack({ ok: true, result });
+      // Forward the tool-level isError flag so the frontend can style errors
+      ack({ ok: true, result, isToolError: result.isError ?? false });
     } catch (err) {
       console.error(`[bridge] Tool call failed (${tool}):`, err);
       ack({ ok: false, error: String(err) });

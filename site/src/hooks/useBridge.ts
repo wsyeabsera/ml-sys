@@ -8,6 +8,7 @@ export type ConnectionStatus = "connecting" | "connected" | "disconnected";
 export interface McpResult {
   ok: boolean;
   result?: { content: { type: string; text: string }[] };
+  isToolError?: boolean;
   error?: string;
 }
 
