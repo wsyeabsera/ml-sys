@@ -28,7 +28,7 @@ This is the "bridge server" — a small Node.js process (~150 lines) that sits b
 │  │  Cell 3 [CodeMirror]  →  Output: JSON / error            │  │
 │  │   ...                                                    │  │
 │  └───────────────┬────────────────────────────────────────┘  │
-│                  │ WebSocket (ws://localhost:3001)             │
+│                  │ WebSocket (Socket.io on localhost:3001)             │
 └──────────────────┼────────────────────────────────────────────┘
                    │
 ┌──────────────────┼────────────────────────────────────────────┐
@@ -57,28 +57,38 @@ This is the "bridge server" — a small Node.js process (~150 lines) that sits b
 └────────────────────────────────────────────────────────────────┘
 ```
 
-## Wire protocol (browser <-> bridge)
+## Wire protocol (browser <-> bridge via Socket.io)
+
+Socket.io instead of raw WebSocket. Why:
+- **Auto-reconnection** — bridge restarts (rebuilt rs-tensor, server crash) and the browser reconnects without page refresh.
+- **Acknowledgement callbacks** — `socket.emit("eval", data, (result) => ...)` gives us request/response for free. No manual message ID tracking.
+- **Event-based API** — `socket.on("result")`, `socket.on("ready")` instead of parsing a generic `onmessage` handler.
+- Negligible bundle size difference for a learning project.
 
 ```typescript
-// Browser sends to bridge
-type ClientMessage =
-  | { type: "eval"; cellId: string; code: string }        // Run TS/JS
-  | { type: "mcp_call"; cellId: string; tool: string; args: Record<string, unknown> }  // Call MCP tool
-  | { type: "reset" };                                     // Clear state, restart MCP
+// Browser → Bridge (events with ack callbacks)
+socket.emit("eval", { cellId, code }, (response) => ...);
+socket.emit("mcp_call", { cellId, tool, args }, (response) => ...);
+socket.emit("reset");
 
-// Bridge sends to browser
-type ServerMessage =
-  | { type: "result"; cellId: string; output: string; structured?: unknown }
-  | { type: "error"; cellId: string; error: string }
-  | { type: "ready" };                                     // MCP spawned and initialized
+// Bridge → Browser (server-pushed events)
+socket.on("ready")                    // MCP spawned and initialized
+socket.on("cell_stream", { cellId, chunk })  // Optional: streaming output
+
+// Ack response shape (same for eval and mcp_call)
+type AckResponse =
+  | { ok: true; output: string; structured?: unknown }
+  | { ok: false; error: string };
 ```
+
+The ack pattern is perfect here — the browser sends a cell execution request and gets the result back in the same callback. No need for separate "result" events or message ID matching.
 
 ## Bridge server file structure
 
 ```
 site/bridge/
-  package.json          # deps: ws, @modelcontextprotocol/sdk
-  server.ts             # Entry: WS server + message routing
+  package.json          # deps: socket.io, @modelcontextprotocol/sdk
+  server.ts             # Entry: Socket.io server + message routing
   mcp-client.ts         # Spawn rs-tensor, JSON-RPC over stdio
   eval-context.ts       # vm.Context management, TS cell eval
   protocol.ts           # Shared message types (also used by frontend)
@@ -90,6 +100,7 @@ site/bridge/
 - Node can spawn the rs-tensor binary and pipe stdio.
 - Node's `vm` module gives us a shared JS context for cells (like Jupyter's kernel).
 - The `@modelcontextprotocol/sdk` package has `StdioClientTransport` ready to use.
+- Socket.io gives us reconnection, ack callbacks, and event routing out of the box.
 
 ## Alternative considered: SSE transport in Rust
 
@@ -104,6 +115,6 @@ We could add `transport-sse` to the Rust MCP server and have the browser talk to
 
 - Vite runs on port 5173 (or whatever it's configured to).
 - Bridge runs on port 3001.
-- The browser connects to the bridge via `ws://localhost:3001`.
+- The browser connects to the bridge via `Socket.io on localhost:3001`.
 - In development, you run both: `npm run dev` (Vite) and `npm run bridge` (Node bridge).
 - Later, could add a Vite plugin or `concurrently` script to start both at once.
