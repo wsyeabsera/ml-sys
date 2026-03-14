@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { parseResult } from "../../lib/result-parser";
 import TensorViz from "./TensorViz";
 import AutogradViz from "./AutogradViz";
@@ -5,20 +6,46 @@ import AutogradViz from "./AutogradViz";
 interface ReplOutputProps {
   output: string;
   isError: boolean;
+  outputId?: string | null;
+  hasRichViz?: boolean;
 }
 
-export default function ReplOutput({ output, isError }: ReplOutputProps) {
+export default function ReplOutput({ output, isError, outputId, hasRichViz }: ReplOutputProps) {
   const result = parseResult(output, isError);
+
+  const vizLink = hasRichViz && outputId ? (
+    <Link
+      to={`/visualize?outputId=${outputId}`}
+      className="inline-flex items-center gap-1 mt-1 text-xs text-[var(--color-accent-blue)] hover:underline"
+    >
+      Open in Visualizer
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        <polyline points="15 3 21 3 21 9" />
+        <line x1="10" y1="14" x2="21" y2="3" />
+      </svg>
+    </Link>
+  ) : null;
 
   switch (result.type) {
     case "empty":
       return null;
 
     case "tensor":
-      return <TensorViz tensor={result.data as never} />;
+      return (
+        <div>
+          <TensorViz tensor={result.data as never} />
+          {vizLink}
+        </div>
+      );
 
     case "autograd":
-      return <AutogradViz data={result.data as never} />;
+      return (
+        <div>
+          <AutogradViz data={result.data as never} />
+          {vizLink}
+        </div>
+      );
 
     case "tensor_list": {
       const list = result.data as {
@@ -94,12 +121,72 @@ export default function ReplOutput({ output, isError }: ReplOutputProps) {
         </pre>
       );
 
+    case "attention": {
+      const attn = result.data as { attention_weights: { shape: number[] }; output: { shape: number[] } };
+      return (
+        <div>
+          <div className="bg-[var(--color-surface-raised)] rounded-lg p-3 space-y-1">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-1.5 py-0.5 rounded bg-[var(--color-accent-blue)]/20 text-[var(--color-accent-blue)] font-mono">
+                attention
+              </span>
+              <span className="text-[var(--color-text-muted)]">
+                {attn.attention_weights.shape[0]} tokens, weights [{attn.attention_weights.shape.join("x")}], output [{attn.output.shape.join("x")}]
+              </span>
+            </div>
+          </div>
+          {vizLink}
+        </div>
+      );
+    }
+
+    case "mlp": {
+      const mlp = result.data as { output: { shape: number[] }; layers: { layer: number }[] };
+      return (
+        <div>
+          <div className="bg-[var(--color-surface-raised)] rounded-lg p-3 space-y-1">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-1.5 py-0.5 rounded bg-[var(--color-accent-emerald)]/20 text-[var(--color-accent-emerald)] font-mono">
+                mlp
+              </span>
+              <span className="text-[var(--color-text-muted)]">
+                {mlp.layers.length} layers, output [{mlp.output.shape.join("x")}]
+              </span>
+            </div>
+          </div>
+          {vizLink}
+        </div>
+      );
+    }
+
+    case "neuron": {
+      const neuron = result.data as { output: number; inputs: { value: number }[] };
+      return (
+        <div>
+          <div className="bg-[var(--color-surface-raised)] rounded-lg p-3 space-y-1">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-1.5 py-0.5 rounded bg-[var(--color-accent-emerald)]/20 text-[var(--color-accent-emerald)] font-mono">
+                neuron
+              </span>
+              <span className="text-[var(--color-text-muted)]">
+                {neuron.inputs.length} inputs, out = tanh(sum(x*w) + b) = {neuron.output.toFixed(4)}
+              </span>
+            </div>
+          </div>
+          {vizLink}
+        </div>
+      );
+    }
+
     case "array":
     case "object":
       return (
-        <pre className="whitespace-pre-wrap text-xs p-3 rounded-lg bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] font-mono">
-          {JSON.stringify(result.data, null, 2)}
-        </pre>
+        <div>
+          <pre className="whitespace-pre-wrap text-xs p-3 rounded-lg bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] font-mono">
+            {JSON.stringify(result.data, null, 2)}
+          </pre>
+          {vizLink}
+        </div>
       );
 
     case "string":

@@ -7,6 +7,9 @@ export type ResultType =
   | "tensor_list"
   | "tensor_scalar"
   | "autograd"
+  | "attention"
+  | "mlp"
+  | "neuron"
   | "number"
   | "array"
   | "object"
@@ -60,6 +63,41 @@ export function parseResult(output: string, isError: boolean): ParsedResult {
       }
     }
 
+    // Attention results: has attention_weights
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "attention_weights" in parsed &&
+      "output" in parsed
+    ) {
+      return { type: "attention", data: parsed, raw: output };
+    }
+
+    // MLP results: has layers array with weight gradients
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "layers" in parsed &&
+      Array.isArray(parsed.layers) &&
+      parsed.layers.length > 0 &&
+      "w" in parsed.layers[0]
+    ) {
+      return { type: "mlp", data: parsed, raw: output };
+    }
+
+    // Autograd neuron result: has "output" and "weights" and "inputs" and "bias"
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "output" in parsed &&
+      "weights" in parsed &&
+      "inputs" in parsed &&
+      "bias" in parsed &&
+      typeof parsed.output === "number"
+    ) {
+      return { type: "neuron", data: parsed, raw: output };
+    }
+
     // Autograd results: has "values" array with name/data/grad
     if (
       typeof parsed === "object" &&
@@ -72,13 +110,14 @@ export function parseResult(output: string, isError: boolean): ParsedResult {
       return { type: "autograd", data: parsed, raw: output };
     }
 
-    // Autograd neuron result: has "output" and "weights" and "inputs"
+    // Autograd tensor layer result (autograd_neuron_tensor): has output + x/w/b
     if (
       typeof parsed === "object" &&
       parsed !== null &&
       "output" in parsed &&
-      "weights" in parsed &&
-      "inputs" in parsed
+      "x" in parsed &&
+      "w" in parsed &&
+      "b" in parsed
     ) {
       return { type: "autograd", data: parsed, raw: output };
     }

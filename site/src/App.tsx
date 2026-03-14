@@ -20,6 +20,7 @@ import Chapter4 from "./pages/Chapter4";   // MCP Server (moved from main arc)
 import Playground from "./pages/Playground";
 import Settings from "./pages/Settings";
 import ToolReference from "./pages/ToolReference";
+import Visualize from "./pages/Visualize";
 
 export default function App() {
   const location = useLocation();
@@ -58,6 +59,7 @@ export default function App() {
           {/* Tools */}
           <Route path="/playground" element={<Playground />} />
           <Route path="/reference" element={<ToolReference />} />
+          <Route path="/visualize" element={<Visualize />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </AnimatePresence>

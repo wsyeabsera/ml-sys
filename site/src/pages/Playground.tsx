@@ -110,7 +110,12 @@ export default function Playground() {
                 {entry.input}
               </div>
               {!entry.restored && (
-                <ReplOutput output={entry.output} isError={entry.isError} />
+                <ReplOutput
+                  output={entry.output}
+                  isError={entry.isError}
+                  outputId={entry.outputId}
+                  hasRichViz={entry.hasRichViz}
+                />
               )}
             </motion.div>
           ))}

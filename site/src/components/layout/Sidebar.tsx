@@ -16,6 +16,7 @@ const learnChapters = [
 
 const playgroundItems = [
   { path: "/playground", title: "REPL", icon: ">_" },
+  { path: "/visualize", title: "Visualizer", icon: "~~" },
   { path: "/reference", title: "Tool Reference", icon: "??" },
 ];
 

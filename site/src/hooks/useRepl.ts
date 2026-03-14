@@ -2,15 +2,26 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useBridge } from "./useBridge";
 import { useEvalWorker } from "./useEvalWorker";
 import { isMcpCall, parseMcpCall } from "../lib/mcp-shorthand";
-import { loadSession, saveSession, clearSession } from "../lib/db";
+import {
+  loadSession,
+  saveSession,
+  clearSession,
+  generateOutputId,
+  storeOutput,
+  type StoredOutput,
+} from "../lib/db";
 import { loadSettings } from "../pages/Settings";
+import { parseResult } from "../lib/result-parser";
+import { detectHasRichViz } from "../lib/output-store";
 
 export interface HistoryEntry {
   id: number;
   input: string;
   output: string;
+  outputId: string | null; // references IndexedDB stored output
   isError: boolean;
-  restored?: boolean; // greyed-out restored command (no output)
+  hasRichViz: boolean;
+  restored?: boolean;
 }
 
 export function useRepl() {
@@ -28,11 +39,13 @@ export function useRepl() {
       if (commands.length > 0) {
         setCommandHistory(commands);
         setHistory(
-          commands.map((cmd, i) => ({
+          commands.map((cmd) => ({
             id: idRef.current++,
             input: cmd,
             output: "",
+            outputId: null,
             isError: false,
+            hasRichViz: false,
             restored: true,
           })),
         );
@@ -78,7 +91,6 @@ export function useRepl() {
             const result = await callTool(tool, args);
             if (result.ok && result.result) {
               output = result.result.content.map((c) => c.text).join("\n");
-              // MCP tool returned an error (e.g., "Tensor not found", shape mismatch)
               if (result.isToolError) {
                 isError = true;
               }
@@ -106,9 +118,38 @@ export function useRepl() {
         }
       }
 
+      // Parse result type and store output
+      const parsed = parseResult(output, isError);
+      const hasRichViz = !isError && detectHasRichViz(output, parsed.type);
+      const outputId = generateOutputId();
+
+      let parsedData: unknown = null;
+      try {
+        parsedData = JSON.parse(output);
+      } catch { /* not JSON */ }
+
+      const stored: StoredOutput = {
+        id: outputId,
+        input: code,
+        output,
+        parsed: parsedData,
+        type: parsed.type,
+        timestamp: Date.now(),
+        isError,
+        hasRichViz,
+      };
+      storeOutput(stored);
+
       setHistory((prev) => [
         ...prev,
-        { id: idRef.current++, input: code, output, isError },
+        {
+          id: idRef.current++,
+          input: code,
+          output,
+          outputId,
+          isError,
+          hasRichViz,
+        },
       ]);
       setRunning(false);
     },
