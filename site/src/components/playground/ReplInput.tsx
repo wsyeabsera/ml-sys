@@ -72,6 +72,13 @@ export default function ReplInput({
             },
           },
           {
+            key: "Ctrl-l",
+            run: () => {
+              onExecuteRef.current("clear");
+              return true;
+            },
+          },
+          {
             key: "ArrowUp",
             run: (view) => {
               const cursor = view.state.selection.main.head;

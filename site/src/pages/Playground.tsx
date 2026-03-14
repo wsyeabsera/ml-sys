@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import PageTransition from "../components/layout/PageTransition";
 import ConnectionStatus from "../components/playground/ConnectionStatus";
 import ReplInput from "../components/playground/ReplInput";
+import ReplOutput from "../components/playground/ReplOutput";
 import { useRepl } from "../hooks/useRepl";
 
 export default function Playground() {
@@ -46,25 +47,22 @@ export default function Playground() {
               key={entry.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-1"
+              className={`space-y-1 ${entry.restored ? "opacity-40" : ""}`}
             >
-              <div className="text-[var(--color-accent-blue)]">
+              <div className={entry.restored ? "text-[var(--color-text-muted)]" : "text-[var(--color-accent-blue)]"}>
                 <span className="select-none">{">"} </span>
                 {entry.input}
               </div>
-              {entry.output && (
-                <pre
-                  className={`whitespace-pre-wrap text-xs p-3 rounded-lg ${
-                    entry.isError
-                      ? "bg-red-500/10 text-[var(--color-accent-rose)] border-l-2 border-red-500"
-                      : "bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)]"
-                  }`}
-                >
-                  {entry.output}
-                </pre>
+              {!entry.restored && (
+                <ReplOutput output={entry.output} isError={entry.isError} />
               )}
             </motion.div>
           ))}
+          {history.some((e) => e.restored) && !history.some((e) => !e.restored) && (
+            <div className="text-xs text-[var(--color-text-muted)] text-center py-2">
+              Session restored — re-run commands to see results
+            </div>
+          )}
           {running && (
             <div className="flex items-center gap-2 text-[var(--color-text-muted)]">
               <span className="w-2 h-2 rounded-full bg-[var(--color-accent-blue)] animate-pulse" />

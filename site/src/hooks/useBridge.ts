@@ -14,6 +14,7 @@ export interface McpResult {
 export function useBridge() {
   const socketRef = useRef<Socket | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  const [toolNames, setToolNames] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const socket = io(BRIDGE_URL, {
@@ -24,11 +25,20 @@ export function useBridge() {
     socketRef.current = socket;
 
     socket.on("connect", () => {
-      setStatus("connecting"); // connected to socket, waiting for MCP ready
+      setStatus("connecting");
     });
 
     socket.on("ready", () => {
       setStatus("connected");
+      // Fetch available tool names for auto-detection
+      socket.emit(
+        "list_tools",
+        (response: { ok: boolean; tools?: string[]; error?: string }) => {
+          if (response.ok && response.tools) {
+            setToolNames(new Set(response.tools));
+          }
+        },
+      );
     });
 
     socket.on("mcp_error", () => {
@@ -64,5 +74,5 @@ export function useBridge() {
     [],
   );
 
-  return { status, callTool };
+  return { status, callTool, toolNames };
 }

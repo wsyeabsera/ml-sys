@@ -29,12 +29,14 @@ export const TOOL_NAMES = new Set(Object.keys(TOOL_SCHEMAS));
 /**
  * Check if input looks like an MCP tool call.
  * Must start with a known tool name followed by "(".
+ * Accepts an optional dynamic set of tool names (from tools/list).
  */
-export function isMcpCall(input: string): boolean {
+export function isMcpCall(input: string, dynamicTools?: Set<string>): boolean {
   const trimmed = input.trim();
   const match = trimmed.match(/^(\w+)\s*\(/);
   if (!match) return false;
-  return TOOL_NAMES.has(match[1]);
+  const name = match[1];
+  return TOOL_NAMES.has(name) || (dynamicTools?.has(name) ?? false);
 }
 
 /**

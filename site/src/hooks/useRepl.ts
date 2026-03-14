@@ -1,17 +1,19 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useBridge } from "./useBridge";
 import { useEvalWorker } from "./useEvalWorker";
 import { isMcpCall, parseMcpCall } from "../lib/mcp-shorthand";
+import { loadSession, saveSession, clearSession } from "../lib/db";
 
 export interface HistoryEntry {
   id: number;
   input: string;
   output: string;
   isError: boolean;
+  restored?: boolean; // greyed-out restored command (no output)
 }
 
 export function useRepl() {
-  const { status, callTool } = useBridge();
+  const { status, callTool, toolNames } = useBridge();
   const { evaluate } = useEvalWorker();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [running, setRunning] = useState(false);
@@ -19,12 +21,40 @@ export function useRepl() {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const idRef = useRef(0);
 
+  // Load saved session on mount
+  useEffect(() => {
+    loadSession().then((commands) => {
+      if (commands.length > 0) {
+        setCommandHistory(commands);
+        setHistory(
+          commands.map((cmd, i) => ({
+            id: idRef.current++,
+            input: cmd,
+            output: "",
+            isError: false,
+            restored: true,
+          })),
+        );
+      }
+    });
+  }, []);
+
+  // Persist commands whenever they change
+  useEffect(() => {
+    if (commandHistory.length > 0) {
+      saveSession(commandHistory);
+    }
+  }, [commandHistory]);
+
   const execute = useCallback(
     async (input: string) => {
       const code = input.trim();
       if (!code) return;
+
       if (code === "clear") {
         setHistory([]);
+        setCommandHistory([]);
+        clearSession();
         return;
       }
 
@@ -35,10 +65,10 @@ export function useRepl() {
       let output: string;
       let isError = false;
 
-      if (isMcpCall(code)) {
-        // Route to MCP bridge
+      if (isMcpCall(code, toolNames)) {
         if (status !== "connected") {
-          output = "Error: Bridge not connected. Start the bridge server with: cd site/bridge && npx tsx server.ts";
+          output =
+            "Error: Bridge not connected. Start the bridge server with: cd site/bridge && npx tsx server.ts";
           isError = true;
         } else {
           try {
@@ -56,13 +86,12 @@ export function useRepl() {
           }
         }
       } else {
-        // Route to Web Worker JS eval
         const result = await evaluate(code);
         if (result.error) {
           output = result.error;
           isError = true;
         } else if (result.value === undefined) {
-          output = ""; // No output for void results (const x = 5, etc.)
+          output = "";
         } else {
           output =
             typeof result.value === "string"
@@ -77,7 +106,7 @@ export function useRepl() {
       ]);
       setRunning(false);
     },
-    [status, callTool, evaluate],
+    [status, callTool, evaluate, toolNames],
   );
 
   const navigateHistory = useCallback(

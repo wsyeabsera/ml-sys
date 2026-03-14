@@ -50,6 +50,16 @@ io.on("connection", async (socket) => {
     socket.emit("mcp_error", { error: String(err) });
   }
 
+  socket.on("list_tools", async (ack) => {
+    try {
+      const client = await ensureMcp();
+      const result = await client.listTools();
+      ack({ ok: true, tools: result.tools.map((t) => t.name) });
+    } catch (err) {
+      ack({ ok: false, error: String(err) });
+    }
+  });
+
   socket.on("mcp_call", async (data, ack) => {
     const { tool, args } = data;
     try {
