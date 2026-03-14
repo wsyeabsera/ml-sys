@@ -1,5 +1,13 @@
 # Playground Architecture
 
+## Context
+
+This is part of the `ml-sys` learning project. We have:
+- **rs-tensor**: a Rust tensor library with an MCP server exposing tools for tensor ops, autograd, attention, GGUF, and LLaMA (stdio transport, spawned as a child process).
+- **site**: a React learning site (Vite + TypeScript + Tailwind + framer-motion) with 10 chapters and viz components (ShapeExplorer, GradientFlow, ComputationGraph3D, etc.).
+
+The playground is a new page in the React site that lets you call these MCP tools interactively and see results rendered inline.
+
 ## Design principles
 
 1. **UI and logic are separate.** React components know nothing about eval or MCP. They receive results and render them.

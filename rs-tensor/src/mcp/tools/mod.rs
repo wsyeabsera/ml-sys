@@ -49,12 +49,17 @@ impl TensorServer {
         }
 
         let t = Tensor::new(args.data, args.shape.clone());
-        let info = format!(
-            "Created tensor '{}': shape={:?}, data={:?}",
-            args.name, t.shape, t.data
-        );
+        let result = json!({
+            "op": "tensor_create",
+            "name": args.name,
+            "shape": t.shape,
+            "data": t.data,
+            "num_elements": t.data.len(),
+        });
         self.tensors.lock().await.insert(args.name, t);
-        Ok(CallToolResult::success(vec![Content::text(info)]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap()
+        )]))
     }
 
     #[tool(description = "Add two named tensors and store the result. Shapes must match.")]
@@ -90,13 +95,18 @@ impl TensorServer {
         }
 
         let result = a.add(b);
-        let info = format!(
-            "tensor_add('{}', '{}') -> '{}': shape={:?}, data={:?}",
-            args.a, args.b, args.result_name, result.shape, result.data
-        );
+        let response = json!({
+            "op": "tensor_add",
+            "inputs": [args.a, args.b],
+            "result_name": args.result_name,
+            "shape": result.shape,
+            "data": result.data,
+        });
         drop(store);
         self.tensors.lock().await.insert(args.result_name, result);
-        Ok(CallToolResult::success(vec![Content::text(info)]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap()
+        )]))
     }
 
     #[tool(description = "Element-wise multiply two named tensors and store the result. Shapes must match.")]
@@ -132,13 +142,18 @@ impl TensorServer {
         }
 
         let result = a.mul(b);
-        let info = format!(
-            "tensor_mul('{}', '{}') -> '{}': shape={:?}, data={:?}",
-            args.a, args.b, args.result_name, result.shape, result.data
-        );
+        let response = json!({
+            "op": "tensor_mul",
+            "inputs": [args.a, args.b],
+            "result_name": args.result_name,
+            "shape": result.shape,
+            "data": result.data,
+        });
         drop(store);
         self.tensors.lock().await.insert(args.result_name, result);
-        Ok(CallToolResult::success(vec![Content::text(info)]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap()
+        )]))
     }
 
     #[tool(description = "Matrix multiply two 2D tensors: [M,K] x [K,N] -> [M,N]. Inner dimensions must match.")]
@@ -181,13 +196,18 @@ impl TensorServer {
         }
 
         let result = a.matmul(b);
-        let info = format!(
-            "matmul('{}' {:?}, '{}' {:?}) -> '{}': shape={:?}, data={:?}",
-            args.a, a.shape, args.b, b.shape, args.result_name, result.shape, result.data
-        );
+        let response = json!({
+            "op": "tensor_matmul",
+            "inputs": [args.a, args.b],
+            "result_name": args.result_name,
+            "shape": result.shape,
+            "data": result.data,
+        });
         drop(store);
         self.tensors.lock().await.insert(args.result_name, result);
-        Ok(CallToolResult::success(vec![Content::text(info)]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap()
+        )]))
     }
 
     #[tool(description = "Get a single element from a 2D tensor by (row, col). Returns the value at that position.")]
@@ -198,10 +218,14 @@ impl TensorServer {
         let store = self.tensors.lock().await;
         match store.get(&args.name) {
             Some(t) => match t.get_2d(args.row, args.col) {
-                Some(val) => Ok(CallToolResult::success(vec![Content::text(format!(
-                    "{}[{}, {}] = {}",
-                    args.name, args.row, args.col, val
-                ))])),
+                Some(val) => Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&json!({
+                        "op": "tensor_get_2d",
+                        "name": args.name,
+                        "indices": [args.row, args.col],
+                        "value": val,
+                    })).unwrap()
+                )])),
                 None => Ok(CallToolResult::error(vec![Content::text(format!(
                     "Index ({}, {}) out of bounds for shape {:?}",
                     args.row, args.col, t.shape
@@ -222,10 +246,14 @@ impl TensorServer {
         let store = self.tensors.lock().await;
         match store.get(&args.name) {
             Some(t) => match t.get(&args.indices) {
-                Some(val) => Ok(CallToolResult::success(vec![Content::text(format!(
-                    "{}[{:?}] = {}",
-                    args.name, args.indices, val
-                ))])),
+                Some(val) => Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&json!({
+                        "op": "tensor_get",
+                        "name": args.name,
+                        "indices": args.indices,
+                        "value": val,
+                    })).unwrap()
+                )])),
                 None => Ok(CallToolResult::error(vec![Content::text(format!(
                     "Index {:?} out of bounds for shape {:?}",
                     args.indices, t.shape
@@ -247,13 +275,19 @@ impl TensorServer {
         match store.get(&args.name) {
             Some(t) => match t.reshape(args.new_shape.clone()) {
                 Some(result) => {
-                    let info = format!(
-                        "reshape('{}') {:?} -> '{}' {:?}",
-                        args.name, t.shape, args.result_name, result.shape
-                    );
+                    let response = json!({
+                        "op": "tensor_reshape",
+                        "name": args.name,
+                        "original_shape": t.shape,
+                        "result_name": args.result_name,
+                        "shape": result.shape,
+                        "data": result.data,
+                    });
                     drop(store);
                     self.tensors.lock().await.insert(args.result_name, result);
-                    Ok(CallToolResult::success(vec![Content::text(info)]))
+                    Ok(CallToolResult::success(vec![Content::text(
+                        serde_json::to_string_pretty(&response).unwrap()
+                    )]))
                 }
                 None => {
                     let current_size: usize = t.data.len();
@@ -280,13 +314,21 @@ impl TensorServer {
         match store.get(&args.name) {
             Some(t) => match t.transpose(args.dim0, args.dim1) {
                 Some(result) => {
-                    let info = format!(
-                        "transpose('{}', dim{}↔dim{}) -> '{}': shape={:?}, strides={:?}",
-                        args.name, args.dim0, args.dim1, args.result_name, result.shape, result.strides
-                    );
+                    let response = json!({
+                        "op": "tensor_transpose",
+                        "name": args.name,
+                        "dim0": args.dim0,
+                        "dim1": args.dim1,
+                        "result_name": args.result_name,
+                        "shape": result.shape,
+                        "strides": result.strides,
+                        "data": result.data,
+                    });
                     drop(store);
                     self.tensors.lock().await.insert(args.result_name, result);
-                    Ok(CallToolResult::success(vec![Content::text(info)]))
+                    Ok(CallToolResult::success(vec![Content::text(
+                        serde_json::to_string_pretty(&response).unwrap()
+                    )]))
                 }
                 None => Ok(CallToolResult::error(vec![Content::text(format!(
                     "Invalid dimensions ({}, {}) for tensor with {} dims",
@@ -308,14 +350,14 @@ impl TensorServer {
         let store = self.tensors.lock().await;
         match store.get(&args.name) {
             Some(t) => Ok(CallToolResult::success(vec![Content::text(
-                json!({
+                serde_json::to_string_pretty(&json!({
+                    "op": "tensor_inspect",
                     "name": args.name,
                     "shape": t.shape,
                     "strides": t.strides,
                     "data": t.data,
                     "num_elements": t.data.len(),
-                })
-                .to_string(),
+                })).unwrap(),
             )])),
             None => Ok(CallToolResult::error(vec![Content::text(format!(
                 "Tensor '{}' not found",
@@ -327,26 +369,23 @@ impl TensorServer {
     #[tool(description = "List all tensors currently stored in memory.")]
     async fn tensor_list(&self) -> Result<CallToolResult, McpError> {
         let store = self.tensors.lock().await;
-        if store.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "No tensors stored.",
-            )]));
-        }
-        let summary: Vec<String> = store
+        let tensors: Vec<serde_json::Value> = store
             .iter()
             .map(|(name, t)| {
-                format!(
-                    "  {} : shape={:?} ({} elements)",
-                    name,
-                    t.shape,
-                    t.data.len()
-                )
+                json!({
+                    "name": name,
+                    "shape": t.shape,
+                    "num_elements": t.data.len(),
+                })
             })
             .collect();
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "Stored tensors:\n{}",
-            summary.join("\n")
-        ))]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json!({
+                "op": "tensor_list",
+                "count": tensors.len(),
+                "tensors": tensors,
+            })).unwrap()
+        )]))
     }
 
     #[tool(description = "Read a file from the project directory (logs, JSON output, source code). Path is relative to rs-tensor/.")]
