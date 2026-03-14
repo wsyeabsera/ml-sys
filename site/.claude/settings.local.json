@@ -14,7 +14,8 @@
       "Bash(cargo build:*)",
       "Bash(cd:*)",
       "mcp__rs-tensor__tensor_create",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Bash(npm install:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

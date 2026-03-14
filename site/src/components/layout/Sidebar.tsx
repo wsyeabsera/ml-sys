@@ -55,7 +55,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {chapters.map((ch) => (
           <NavLink
             key={ch.path}
@@ -87,6 +87,35 @@ export default function Sidebar() {
             )}
           </NavLink>
         ))}
+
+        {/* Playground link */}
+        <div className="mt-4 pt-3 border-t border-[var(--color-surface-overlay)]">
+          <NavLink to="/playground" className="block">
+            {({ isActive }) => (
+              <motion.div
+                className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                  isActive
+                    ? "text-[var(--color-text-primary)] bg-[var(--color-surface-overlay)]"
+                    : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-overlay)]/50"
+                }`}
+                whileHover={{ x: 2 }}
+                transition={{ duration: 0.15 }}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebar-indicator"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-full bg-[var(--color-accent-blue)]"
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+                <span className="font-mono text-xs text-[var(--color-text-muted)] w-5">
+                  {">_"}
+                </span>
+                <span>Playground</span>
+              </motion.div>
+            )}
+          </NavLink>
+        </div>
       </nav>
 
       {/* Footer with theme toggle */}
