@@ -34,6 +34,10 @@ Or simpler: just return JSON as the text content and let the consumer parse it. 
 4. `attention_forward`, `mlp_forward` — higher-level ops
 5. `gguf_inspect`, `llama_inspect` — model inspection (lower priority)
 
+### Tests:
+- `cargo test` for each modified tool: response parses as JSON, contains expected fields, human-readable text still present.
+- Test in `rs-tensor/tests/mcp_structured_output.rs`.
+
 ### Deliverable:
 Each tool returns a response with a parseable JSON structure. The playground can render these directly without guessing.
 
@@ -56,13 +60,23 @@ Each tool returns a response with a parseable JSON structure. The playground can
 3. **Connection status** — shows connected/disconnected state
 4. **Route** — add `/playground` to App.tsx and sidebar
 
-### Test:
+### Tests:
+**Automated (Vitest):**
+- Bridge lifecycle: spawns MCP, emits "ready", handles tool calls, returns structured JSON.
+- Bridge error handling: invalid tool name → clean error. Missing args → clean error. Not a crash or hang.
+- Bridge reconnection: kill MCP process → bridge respawns it → new calls work.
+- Concurrent calls: 5 rapid tool calls → all resolve correctly, no response mixing.
+- Bridge shutdown: child process is killed, no orphans.
+
+**Manual (chrome-devtools MCP):**
+- Open `/playground`, see connected status, type a tool call, see result.
+
+### Test files:
 ```
-Start bridge: cd site/bridge && npx tsx server.ts
-Start site:   cd site && npm run dev
-Open /playground
-Type: tensor_create("a", [1,2,3,4], [2,2])
-See: structured JSON response
+site/tests/bridge/mcp-lifecycle.test.ts
+site/tests/bridge/protocol.test.ts
+site/tests/bridge/reconnection.test.ts
+site/tests/bridge/concurrent.test.ts
 ```
 
 ---
@@ -83,13 +97,25 @@ See: structured JSON response
 6. **Auto-detection** — input starts with known MCP tool name → bridge, else → Web Worker
 7. **useBridge hook** — Socket.io connection, blocks MCP calls when disconnected with clear error
 
-### Test:
+### Tests:
+**Automated (Vitest):**
+- Worker eval: `2 + 2` → `4`. Expressions, statements, errors all handled.
+- Worker scope: `const x = 10` then `x * 3` → `30`. Variables persist.
+- Worker recovery: `throw new Error("boom")` → error result, next eval still works, scope intact.
+- Worker edge cases: `undefined` result handled, very long output truncated, async expressions.
+- Auto-detection: `tensor_create(...)` → MCP route. `2 + 2` → JS route. `const tensor_create = 5` → JS route.
+- MCP shorthand parser: `tensor_create("a", [1,2,3,4], [2,2])` → correct structured tool call. Malformed input → clean error.
+
+**Manual (chrome-devtools MCP):**
+- Full REPL interaction: type JS, type MCP calls, see history scroll, Up/Down for command history.
+
+### Test files:
 ```
-2 + 2                                       → 4 (Web Worker)
-const x = 10                                → (no output, but x is now defined)
-x * 3                                       → 30 (persistent scope!)
-tensor_create("a", [1,2,3,4], [2,2])       → structured JSON (bridge)
-Up arrow                                    → recalls previous command
+site/tests/worker/eval.test.ts
+site/tests/worker/scope.test.ts
+site/tests/worker/recovery.test.ts
+site/tests/lib/mcp-shorthand.test.ts
+site/tests/lib/auto-detect.test.ts
 ```
 
 ---
@@ -105,11 +131,19 @@ Up arrow                                    → recalls previous command
 4. **Output routing** — ReplOutput picks the right renderer per result type
 5. **Collapsible large outputs** — preview + "show more" for big tensors
 
-### Test:
+### Tests:
+**Automated (Vitest):**
+- Result parser: tensor JSON → type "tensor". Graph JSON → type "graph". Number → "number". Error → "error".
+- Result parser edge cases: empty object, null, missing fields → falls back to "text".
+
+**Manual (chrome-devtools MCP):**
+- Tensor viz renders correctly (screenshot + inspect).
+- Graph viz renders nodes and edges.
+- Large tensor collapses properly.
+
+### Test files:
 ```
-tensor_create("a", [1,2,3,4], [2,2])       → colored 2×2 grid with shape badge
-autograd_expr(...)                           → node graph with gradients
-[1,2,3].map(x => x*2)                       → syntax-highlighted JSON array
+site/tests/lib/result-parser.test.ts
 ```
 
 ---
@@ -128,6 +162,32 @@ autograd_expr(...)                           → node graph with gradients
 4. **Error styling** — red left border, clear messages
 5. **MCP tool discovery** — fetch `tools/list` on connect, use for auto-detection
 6. **Bridge reconnection UX** — smooth reconnection with status updates
+
+---
+
+## Cross-cutting: Observability MCP
+
+**Built alongside Phase 1, evolved through all phases.** Not a separate phase — it grows with the bridge.
+
+### Phase 1 addition:
+- Bridge maintains a ring buffer of log entries (last 500) in memory.
+- Structured logging: every MCP call, every Socket.io event, every error gets a log entry with timestamp, level, category, and structured data.
+- Observability MCP endpoint: `--mcp` flag on the bridge starts a stdio MCP server that exposes `playground://status`, `playground://logs`, `playground_health` tool.
+- Add to `.mcp.json` so Claude can connect.
+
+### Phase 2 addition:
+- `playground://messages` resource: recent message history (last 50 in/out).
+- `playground_recent_errors` tool: last N errors with full context.
+
+### Phase 4 addition:
+- `playground_message_log` tool: filter by type, tool name, time range.
+- `playground_restart_mcp` tool: restart the rs-tensor process.
+- `/debug-playground` Claude skill: auto-checks health, recent errors, connection state.
+
+### Test files:
+```
+site/tests/bridge/observability.test.ts     # Log buffer works, status resource returns valid data
+```
 
 ---
 
@@ -170,6 +230,11 @@ idb
 ```
 socket.io
 @modelcontextprotocol/sdk
+```
+
+**Testing (site dev dependencies):**
+```
+vitest
 ```
 
 **Later:**
