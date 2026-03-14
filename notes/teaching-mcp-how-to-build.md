@@ -24,23 +24,24 @@ Concrete design so we can start implementing. Same repo, still centered on the R
 
 ---
 
-## How it “reads” the React site (v1)
+## How it knows about the React site (v1)
 
-No browser, no runtime — **static extraction** at MCP startup or on first use:
+Two levels of reading:
 
-1. **Chapter content**
-   - Scan `site/src/pages/ChapterN.tsx`.
-   - Extract: chapter number, title (e.g. from first `<motion.h1>` or a constant), and **text content** (inner text of `<p>`, `<h2>`, `<li>`, etc.). Strip JSX and leave markdown-friendly prose.
-   - Option: use a simple regex or a small parser (e.g. strip `{...}`, take text between tags). We can refine later (e.g. proper AST).
+1. **Chapter titles** (automatic)
+   - Scan `site/src/pages/ChapterN.tsx` filenames + extract title from `<motion.h1>`.
+   - This is the only TSX parsing we do — just one regex for the title. No prose extraction from JSX.
 
-2. **Viz / components**
-   - From `site/src/pages/*.tsx`, collect which components are used (e.g. `GradientFlow`, `ComputationGraph3D`, `StrideExplorer`).
-   - From `site/src/components/viz/*.tsx` (and three, etc.), keep a list: component name, file path, and optionally first comment block or a one-line description.
-   - Store as a small “index”: chapter → sections/titles, chapter → list of viz components.
+2. **Chapter content** (markdown files, written by us)
+   - Each chapter has a companion markdown file in `site/content/chapter-NN.md`.
+   - These are the **source of truth** for what each chapter covers — written in our words, not scraped from JSX.
+   - The MCP reads these at startup and serves them via `curriculum://chapter/{n}`.
+   - If a chapter doesn’t have a markdown file yet, the MCP returns a stub.
+   - **Why not parse TSX?** We tried it. TSX is a rendering format, not a content format. Parsing it means building a web scraper for our own code — fragile, tedious, and not the point. Markdown files are easy to write, read, and diff.
 
-3. **Where to store the extracted data**
-   - In memory: at startup, walk `site/` and build a struct (e.g. `SiteCurriculum { chapters: Vec<ChapterSummary>, viz: Vec<VizSummary> }`).
-   - Or: write a script (e.g. `site/scripts/extract-chapters.ts` or a Rust bin) that emits JSON; teaching MCP reads that JSON as a resource or from a file. First version: MCP does the walk itself so we don’t need a separate build step.
+3. **Viz / components** (Phase 3, from TSX imports — lightweight)
+   - From `site/src/pages/*.tsx`, collect which components are imported (e.g. `GradientFlow`, `ComputationGraph3D`). This is just scanning import lines, not parsing the full TSX tree.
+   - Store as a small index: chapter → list of viz component names.
 
 ---
 
@@ -65,7 +66,7 @@ Everything here is **data the LLM doesn’t have** — our actual chapter text, 
 ## Tech choices (v1)
 
 - **Language:** Rust, reusing `rmcp` and the same transport (stdio). Easiest given we already have rs-tensor MCP in Rust.
-- **React parsing:** Keep it dumb: read `.tsx` as text, maybe strip `{...}` and extract content between `<p>`, `<h2>`, etc. No need for a full JS/TS parser at first.
+- **Chapter content:** Markdown files in `site/content/`, not TSX parsing. We only parse TSX for titles (one regex).
 - **Paths:** Assume repo layout: teaching MCP runs with cwd or env pointing at repo root, so `site/src/pages` and `rs-tensor/docs` are fixed relative paths (or from `CARGO_MANIFEST_DIR` and then `../site`).
 
 ---
@@ -76,7 +77,7 @@ Only expose **project-specific content**; let the LLM do any “teaching” in t
 
 1. **Resources only (no “explain” tools):**
    - `curriculum://chapters` — list chapter numbers and titles by scanning `site/src/pages/Chapter*.tsx`.
-   - `curriculum://chapter/{n}` — raw extracted text we wrote for chapter N (so the LLM can quote or summarize *our* narrative).
+   - `curriculum://chapter/{n}` — content from `site/content/chapter-NN.md` (so the LLM can quote or summarize *our* narrative).
 2. **Optional prompt:** `teaching_context_for_concept(concept)` — returns a single prompt message that **injects** our material: e.g. for “autograd”, the message body is “Chapter 5 text: … ; Rust: `rs-tensor/src/tensor_value.rs` ; Viz: GradientFlow, SimpleGraph.” The client passes that as context and asks “help me understand this”; the LLM explains using *our* words and structure. The MCP does not generate the explanation.
 3. **No tool that “explains” a concept** — that’s just an LLM call. We only add tools later if they **return** something unique (e.g. “list concepts and their chapter/file/viz” as JSON). From there we can add more resources (viz list, concept index) and “generate page” support (see generating-better-pages.md).
 

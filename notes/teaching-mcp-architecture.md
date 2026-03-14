@@ -42,7 +42,7 @@ How the teaching MCP is structured and how to build it in phases so each step is
 │  ┌─────────────────────────────────────────────────────────────────────┐│
 │  │  Curriculum index (in memory, built at startup or on first use)        ││
 │  │  - chapters: Vec<ChapterSummary>   (number, title, path)             ││
-│  │  - chapter_content: Map<u8, String> (extracted prose per chapter)    ││
+│  │  - chapter_content: Map<u8, String> (from site/content/*.md files)   ││
 │  │  - viz: Vec<VizSummary>            (name, path, chapters_used_in)    ││
 │  │  - concepts: Map<String, ConceptRef> (concept → chapter, rust, viz)   ││
 │  └─────────────────────────────────────────────────────────────────────┘│
@@ -50,7 +50,7 @@ How the teaching MCP is structured and how to build it in phases so each step is
 │           ▼                                                              │
 │  ┌─────────────────────────────────────────────────────────────────────┐│
 │  │  Loaders / extractors                                                ││
-│  │  - Site loader: read site/src/pages/Chapter*.tsx, parse titles/text   ││
+│  │  - Site loader: titles from Chapter*.tsx, content from content/*.md    ││
 │  │  - Viz scanner: scan imports in pages + site/src/components/viz/*    ││
 │  │  - Concept map: only React chapter nums + rs-tensor tools/paths (no notes) ││
 │  └─────────────────────────────────────────────────────────────────────┘│
@@ -59,7 +59,8 @@ How the teaching MCP is structured and how to build it in phases so each step is
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Filesystem (only these; no notes/ or other docs)                        │
-│  - site/src/pages/ChapterN.tsx                                           │
+│  - site/src/pages/ChapterN.tsx        (titles only)                      │
+│  - site/content/chapter-NN.md         (chapter narrative, written by us) │
 │  - site/src/components/viz/*.tsx, three/*.tsx                            │
 │  - rs-tensor: tool implementations (mcp/tools/*.rs, tensor.rs, etc.)    │
 │  - Optional: rs-tensor/teaching-concepts.toml (concept → chapter + tools)  │
@@ -75,7 +76,7 @@ How the teaching MCP is structured and how to build it in phases so each step is
 
 | Component | Responsibility | Output |
 |-----------|----------------|--------|
-| **Site loader** | Find `site/src/pages/Chapter*.tsx`, extract chapter number + title + raw text (strip JSX enough to get prose). | `Vec<ChapterSummary>`, optional `Map<chapter_num, String>` for full text. |
+| **Site loader** | Find `site/src/pages/Chapter*.tsx` for chapter number + title (one regex). Load `site/content/chapter-NN.md` for chapter prose. No TSX text extraction. | `Vec<ChapterSummary>`, `Map<chapter_num, String>` from markdown files. |
 | **Viz scanner** | Scan page files for component imports; optionally list `components/viz/*` and `components/three/*` with paths. | `Vec<VizSummary>` (name, path, which chapters use it). |
 | **Concept map** | Optional. Only references: chapter num (from React), rs-tensor tool names / Rust paths, viz names (from site). No notes or external docs. E.g. config in `rs-tensor/teaching-concepts.toml`. | `Map<String, ConceptRef>`. |
 | **Curriculum index** | Holds the above in memory. Built at startup (or lazily on first resource read). Exposes no direct API; resources/prompts read from it. | Single source of truth for “what we have.” |
@@ -106,15 +107,23 @@ Each phase ships something usable and sets up the next. Paths assume teaching MC
 
 ---
 
-### Phase 2 — Chapter content extraction
+### Phase 2 — Chapter content via markdown files
 
 **Goal:** Client can read the **actual text** we wrote for each chapter (so the LLM can quote or summarize our narrative).
 
-1. Extend **site loader**: for each chapter file, extract prose (e.g. text inside `<p>`, `<h2>`, `<li>`, stripping `{...}` and JSX). Keep it dumb (regex or simple state machine). Store in curriculum index as `chapter_content: Map<chapter_num, String>`.
-2. Add resources: `curriculum://chapter/1` … `curriculum://chapter/10` (and/or a template `curriculum://chapter/{n}`). `read_resource` returns the extracted text (plain text or markdown).
-3. Optional: `list_resources` lists each chapter as a resource so the client can discover them.
+**Decision:** We do NOT parse TSX. Extracting prose from React components is fragile, tedious, and not the point of this project. Instead, each chapter has a companion **markdown file** that contains the chapter's narrative content in clean, readable form.
 
-**Deliverable:** Resources for “chapters list” and “full text of chapter N.” LLM can now use *our* words.
+1. Create a content directory: `site/content/` with files like `chapter-01.md`, `chapter-02.md`, etc. These are the **source of truth** for what each chapter says — written by us, not scraped from JSX.
+2. **Content loader**: at startup, scan `site/content/chapter-*.md`. Match each file to its chapter number. Store in curriculum index as `chapter_content: Map<chapter_num, String>`.
+3. Resources `curriculum://chapter/1` … `curriculum://chapter/10` serve the markdown content directly. If a markdown file doesn't exist yet for a chapter, return a stub (“content not yet written”).
+4. The markdown files can be written incrementally — we don't need all 10 before shipping Phase 2.
+
+**Why markdown files, not TSX parsing:**
+- TSX is a rendering format, not a content format. Parsing it means building a web scraper for our own code.
+- Markdown files are easy to write, easy to read, easy to diff, and the MCP serves them as-is.
+- If the React page and the markdown drift, that's fine — the markdown is the “what we want the LLM to know” version, not a 1:1 mirror of the page.
+
+**Deliverable:** Resources for “chapters list” and “full text of chapter N” from markdown files. LLM can now use *our* words.
 
 ---
 
