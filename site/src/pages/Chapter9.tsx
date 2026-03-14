@@ -1,8 +1,9 @@
+import ClaudePrompts from "../components/ui/ClaudePrompts";
 import PageTransition from "../components/layout/PageTransition";
 import { motion } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
-import ChapterNav from "../components/ui/ChapterNav";
+import LearnNav from "../components/ui/LearnNav";
 import RopeViz from "../components/viz/RopeViz";
 
 export default function Chapter9() {
@@ -12,14 +13,14 @@ export default function Chapter9() {
         {/* Header */}
         <div className="space-y-4">
           <p className="text-sm font-mono text-[var(--color-accent-blue)]">
-            Chapter 09
+            Learn 07
           </p>
           <motion.h1
             className="text-4xl font-bold tracking-tight"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            Transformer Building Blocks
+            Transformers — Assembling the Final Boss
           </motion.h1>
           <motion.p
             className="text-lg text-[var(--color-text-secondary)] max-w-2xl"
@@ -27,89 +28,67 @@ export default function Chapter9() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            RMSNorm, SiLU, and RoPE — the three operations that separate a real
-            LLaMA transformer from our toy attention mechanism.
+            RMSNorm, SiLU, RoPE — the three operations that separate a real
+            LLaMA model from our toy attention. Each one replaced something
+            older for a good reason.
           </motion.p>
         </div>
 
         {/* ============================================================ */}
-        {/* SECTION: Why These Matter */}
+        {/* HOOK */}
         {/* ============================================================ */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">
-            Beyond Toy Attention
-          </h2>
-          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+        <InfoCard title="You're 90% of the way there" accent="emerald">
+          <div className="space-y-2">
             <p>
-              In Chapter 7 we built <code>softmax(QK^T/&radic;d_k)V</code> — the
-              core attention formula. But a real transformer block has several
-              more operations around it. LLaMA (and most modern models) use
-              three key building blocks we haven't covered:
+              You already have tensors, autograd, layers, and attention. A real
+              transformer block is just attention + a feedforward network, with
+              three extra operations sprinkled in: one for normalization, one for
+              a better activation function, and one for position encoding.
             </p>
-            <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>
-                <strong>RMSNorm</strong> — normalizes activations before each
-                sub-layer
-              </li>
-              <li>
-                <strong>SiLU / SwiGLU</strong> — the activation function in the
-                feedforward network
-              </li>
-              <li>
-                <strong>RoPE</strong> — encodes token positions without learned
-                embeddings
-              </li>
-            </ul>
             <p>
-              Each of these replaced an older approach (LayerNorm, ReLU,
-              absolute position embeddings) for good reasons. Let's understand
-              each one.
+              None of these are conceptually hard. They're all "someone tried
+              the obvious thing, found a problem, and this was the fix." Let's
+              understand each fix.
             </p>
           </div>
-        </div>
+        </InfoCard>
 
         {/* ============================================================ */}
         {/* SECTION: RMSNorm */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            RMSNorm — Simpler Normalization
+            RMSNorm: "LayerNorm, But Lazier (and Faster)"
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              Normalization keeps activations from exploding or vanishing as
-              data flows through many layers. The original transformer used{" "}
-              <strong>LayerNorm</strong>, which subtracts the mean and divides
-              by the standard deviation:
+              As data flows through dozens of layers, activations can explode or
+              vanish. Normalization fixes this. The original transformer used
+              LayerNorm:
             </p>
-            <p className="font-mono text-xs">
+            <p className="font-mono text-xs bg-[var(--color-surface-base)] rounded p-2">
               LayerNorm(x) = (x - mean(x)) / std(x) * weight + bias
             </p>
             <p>
-              LLaMA uses <strong>RMSNorm</strong> instead — it drops the mean
-              subtraction and the bias term:
+              LLaMA uses RMSNorm instead — it just drops the mean subtraction
+              and the bias:
             </p>
-            <p className="font-mono text-xs">
-              RMSNorm(x) = (x / rms(x)) * weight
-            </p>
-            <p>
-              where <code>rms(x) = &radic;(mean(x&sup2;) + &epsilon;)</code>.
+            <p className="font-mono text-xs bg-[var(--color-surface-base)] rounded p-2">
+              RMSNorm(x) = (x / rms(x)) * weight &nbsp;&nbsp; where rms(x) = &radic;(mean(x&sup2;) + &epsilon;)
             </p>
             <p>
               Why is this better? Empirically it works just as well, but it's
-              computationally cheaper — you save one pass over the data (no mean
-              computation) and one vector operation (no subtraction). In a model
-              doing this at every layer for every token, those savings add up.
+              cheaper — you skip one pass over the data (no mean) and one
+              subtraction. In a 32-layer model doing this twice per layer for
+              every token, that's 64 fewer operations per forward pass. Laziness
+              pays off.
             </p>
           </div>
         </div>
 
         <CodeBlock
           lang="rust"
-          code={`/// RMSNorm: normalize by root-mean-square, then scale by weights.
-/// out[i] = (x[i] / rms(x)) * weight[i]
-/// where rms(x) = sqrt(mean(x²) + eps)
-pub fn rms_norm(&self, weight: &Tensor, eps: f32) -> Tensor {
+          code={`pub fn rms_norm(&self, weight: &Tensor, eps: f32) -> Tensor {
     let n = self.data.len() as f32;
     let ss: f32 = self.data.iter().map(|x| x * x).sum::<f32>() / n;
     let rms = (ss + eps).sqrt();
@@ -121,69 +100,54 @@ pub fn rms_norm(&self, weight: &Tensor, eps: f32) -> Tensor {
 }`}
         />
 
-        <InfoCard title="Pre-Norm vs Post-Norm" accent="blue">
+        <InfoCard title="Pre-norm vs post-norm" accent="blue">
           <div className="space-y-2">
             <p>
-              The original transformer applied normalization <em>after</em> the
-              attention and FFN (post-norm). LLaMA applies it <em>before</em>{" "}
-              (pre-norm). Pre-norm makes training more stable because the
-              residual connection adds unnormalized values — the signal flows
-              through without being squashed by normalization at every step.
-            </p>
-            <p>
-              In our code you'll see <code>x_norm = x.rms_norm(...)</code> used
-              as input to attention and FFN, while the original <code>x</code>{" "}
-              is used for the residual: <code>x = x.add(&result)</code>.
+              The original transformer normalized <em>after</em> attention and
+              FFN. LLaMA normalizes <em>before</em>. Why? With pre-norm, the
+              residual connection adds unnormalized values — the raw signal
+              flows through without being squashed at every step. This makes
+              training more stable, especially for deep models.
             </p>
           </div>
         </InfoCard>
 
         {/* ============================================================ */}
-        {/* SECTION: SiLU and SwiGLU */}
+        {/* SECTION: SiLU / SwiGLU */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            SiLU and SwiGLU — Better Activations
+            SiLU & SwiGLU: "ReLU Had a Good Run"
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              In Chapter 6, our MLP used <code>tanh</code> as the activation
-              function. The original transformer used <strong>ReLU</strong>
+              Our MLP used tanh. The original transformer used ReLU{" "}
               (<code>max(0, x)</code>). LLaMA uses <strong>SiLU</strong> inside
-              a <strong>SwiGLU</strong> structure — and it makes a real
-              difference.
+              a <strong>SwiGLU</strong> structure.
             </p>
             <p>
-              <strong>SiLU</strong> (Sigmoid Linear Unit) is:
-            </p>
-            <p className="font-mono text-xs">
-              silu(x) = x * sigmoid(x) = x * (1 / (1 + e^(-x)))
-            </p>
-            <p>
-              Unlike ReLU, SiLU is smooth everywhere (no kink at zero) and
-              allows small negative values through. This means gradients never
-              fully die — no "dead neurons" like ReLU can produce.
+              <strong>SiLU</strong> is <code>x * sigmoid(x)</code> — smooth
+              everywhere (no kink at zero like ReLU), and it lets small negative
+              values through. No dead neurons.
             </p>
             <p>
-              <strong>SwiGLU</strong> wraps SiLU in a gated structure with three
-              weight matrices instead of two:
+              <strong>SwiGLU</strong> wraps SiLU in a gated structure:
             </p>
-            <p className="font-mono text-xs">
-              SwiGLU(x) = (silu(x @ W_gate)) * (x @ W_up)
+            <p className="font-mono text-xs bg-[var(--color-surface-base)] rounded p-2">
+              FFN(x) = W_down @ (silu(x @ W_gate) * (x @ W_up))
             </p>
             <p>
-              The "gate" path decides how much signal to let through; the "up"
-              path provides the signal. The output is then projected back down
-              by <code>W_down</code>. This gating mechanism lets the model learn
-              more complex non-linear transformations.
+              Three weight matrices instead of two. The "gate" path decides how
+              much signal to let through; the "up" path provides the signal.
+              Same parameter budget (hidden dim is reduced to compensate), but
+              better quality. The extra matrix pays for itself.
             </p>
           </div>
         </div>
 
         <CodeBlock
           lang="rust"
-          code={`/// SiLU (Sigmoid Linear Unit): silu(x) = x * sigmoid(x)
-/// Used in SwiGLU, the FFN activation in LLaMA.
+          code={`// SiLU: x * sigmoid(x)
 pub fn silu(&self) -> Tensor {
     let data = self.data.iter()
         .map(|x| x * (1.0 / (1.0 + (-x).exp())))
@@ -192,65 +156,46 @@ pub fn silu(&self) -> Tensor {
 }
 
 // SwiGLU FFN in the forward pass:
-let gate = block.ffn_gate.matvec(&x_norm).silu();
-let up   = block.ffn_up.matvec(&x_norm);
-let ffn  = block.ffn_down.matvec(&gate.mul(&up));`}
+let gate = block.ffn_gate.matvec(&x_norm).silu();  // gate path
+let up   = block.ffn_up.matvec(&x_norm);            // signal path
+let ffn  = block.ffn_down.matvec(&gate.mul(&up));    // combine + project down`}
         />
-
-        <InfoCard title="Three Weight Matrices, Not Two" accent="amber">
-          <div className="space-y-2">
-            <p>
-              A standard FFN has two weight matrices: up-project and
-              down-project. SwiGLU has three:{" "}
-              <code>W_gate</code>, <code>W_up</code>, <code>W_down</code>. To
-              keep the same parameter count, the hidden dimension is typically
-              reduced (LLaMA uses <code>2/3 * 4 * dim</code> instead of{" "}
-              <code>4 * dim</code>). Same cost, better quality.
-            </p>
-          </div>
-        </InfoCard>
 
         {/* ============================================================ */}
         {/* SECTION: RoPE */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            RoPE — Rotary Position Embedding
+            RoPE: "Just Rotate It" (Position Encoding)
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              A transformer with just attention has no sense of token order —
-              "the cat sat" and "sat cat the" would produce the same attention
-              scores. Position encoding fixes this by injecting position
-              information.
+              Without position encoding, "the cat sat" and "sat cat the" produce
+              identical attention scores. The model can't tell word order. The
+              original transformer solved this with <em>learned</em> position
+              embeddings — a lookup table of position vectors. Problem: it can't
+              handle sequences longer than it was trained on.
             </p>
             <p>
-              The original transformer used <strong>absolute position
-              embeddings</strong> — a learned vector added to each position.
-              The problem: it can't generalize to sequence lengths longer than
-              what it was trained on.
+              RoPE (Rotary Position Embedding) takes a different approach: it{" "}
+              <em>rotates</em> pairs of values in Q and K by position-dependent
+              angles:
+            </p>
+            <p className="font-mono text-xs bg-[var(--color-surface-base)] rounded p-2">
+              [x₀, x₁] → [x₀·cos(&theta;) - x₁·sin(&theta;), x₀·sin(&theta;) + x₁·cos(&theta;)]
             </p>
             <p>
-              LLaMA uses <strong>RoPE</strong> (Rotary Position Embedding),
-              which works differently. Instead of adding a position vector, it{" "}
-              <em>rotates</em> pairs of values in Q and K by
-              position-dependent angles:
-            </p>
-            <p className="font-mono text-xs">
-              [x₀, x₁] → [x₀·cos(θ) - x₁·sin(θ), x₀·sin(θ) + x₁·cos(θ)]
+              Each pair of dimensions rotates at a different frequency. Early
+              pairs rotate fast (capturing local position — "is this the next
+              word?"). Later pairs rotate slowly (capturing global position —
+              "are we near the beginning or end?").
             </p>
             <p>
-              where <code>θ = pos * freq</code> and{" "}
-              <code>freq = 1/10000^(2i/d)</code>. Each pair of dimensions
-              rotates at a different frequency — early pairs rotate fast
-              (capturing local position), later pairs rotate slowly (capturing
-              global position).
-            </p>
-            <p>
-              The key insight: the dot product <code>q·k</code> after rotation
-              depends only on the <strong>relative</strong> distance between
-              positions, not their absolute values. This means the model
-              naturally learns relative position relationships.
+              The beautiful property: after rotation, the dot product{" "}
+              <code>q·k</code> depends only on the <strong>relative</strong>{" "}
+              distance between positions, not their absolute values. The model
+              learns relative relationships for free, from the geometry of
+              rotations.
             </p>
           </div>
         </div>
@@ -259,114 +204,108 @@ let ffn  = block.ffn_down.matvec(&gate.mul(&up));`}
 
         <CodeBlock
           lang="rust"
-          code={`/// Apply RoPE to a vector.
-/// Rotates pairs of elements by position-dependent angles.
-pub fn rope(&self, pos: usize, head_dim: usize) -> Tensor {
+          code={`pub fn rope(&self, pos: usize, head_dim: usize) -> Tensor {
     let mut data = self.data.clone();
     for i in (0..head_dim).step_by(2) {
         let freq = 1.0 / (10000.0_f32).powf(i as f32 / head_dim as f32);
         let angle = pos as f32 * freq;
-        let cos = angle.cos();
-        let sin = angle.sin();
-        let x0 = data[i];
-        let x1 = data[i + 1];
-        data[i]     = x0 * cos - x1 * sin;
+        let (cos, sin) = (angle.cos(), angle.sin());
+        let (x0, x1) = (data[i], data[i + 1]);
+        data[i]     = x0 * cos - x1 * sin;  // rotate pair
         data[i + 1] = x0 * sin + x1 * cos;
     }
     Tensor::new(data, self.shape.clone())
 }`}
         />
 
-        <InfoCard title="Why Rotation Encodes Relative Position" accent="emerald">
+        <InfoCard title="Why rotation encodes relative position" accent="emerald">
           <div className="space-y-2">
             <p>
-              If you rotate vector <code>q</code> by angle <code>θ_m</code>{" "}
-              (position m) and vector <code>k</code> by angle{" "}
-              <code>θ_n</code> (position n), their dot product equals the
-              dot product of the originals rotated by{" "}
-              <code>θ_m - θ_n</code>. The absolute positions cancel out —
-              only the relative distance <code>m - n</code> matters.
+              Rotate Q by angle &theta;_m (position m) and K by &theta;_n
+              (position n). Their dot product equals the original dot product
+              rotated by &theta;_m - &theta;_n. The absolute positions cancel
+              out — only the distance (m - n) matters.
             </p>
             <p>
-              This is a mathematical property of rotation matrices:{" "}
-              <code>R(a)^T · R(b) = R(b - a)</code>. It's elegant — position
-              sensitivity comes for free from the geometry.
+              Mathematically: <code>R(a)^T &middot; R(b) = R(b - a)</code>.
+              Position sensitivity emerges from the geometry. No learned
+              parameters, no lookup table, generalizes to any length.
             </p>
           </div>
         </InfoCard>
 
         {/* ============================================================ */}
-        {/* SECTION: matvec */}
+        {/* SECTION: Putting it together */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            Matrix-Vector Multiply for Inference
+            The Full Transformer Block
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              During training, you process batches of sequences — so the input
-              is a matrix and you use full matrix multiply. During{" "}
-              <strong>inference</strong>, you typically process one token at a
-              time — so the input is a <strong>vector</strong>.
+              One transformer block is all of this combined:
             </p>
+            <ol className="list-decimal list-inside space-y-1 ml-2">
+              <li><strong>RMSNorm</strong> the input</li>
+              <li>Compute Q, K, V projections</li>
+              <li>Apply <strong>RoPE</strong> to Q and K</li>
+              <li>Run <strong>attention</strong> (the formula from Ch5)</li>
+              <li><strong>Residual add</strong>: x = x + attention_output</li>
+              <li><strong>RMSNorm</strong> again</li>
+              <li>Run <strong>SwiGLU FFN</strong></li>
+              <li><strong>Residual add</strong>: x = x + ffn_output</li>
+            </ol>
             <p>
-              A dedicated <code>matvec</code> operation avoids the overhead of
-              reshaping the vector to a [1, N] matrix and back. It's a simpler
-              loop: for each row of the weight matrix, compute the dot product
-              with the input vector.
+              Repeat this block 22 times (for TinyLlama) or 80 times (for
+              LLaMA 70B). Same structure, different weights. That's the entire
+              model.
             </p>
           </div>
         </div>
 
-        <CodeBlock
-          lang="rust"
-          code={`/// Matrix-vector multiply: [M, N] @ [N] -> [M].
-/// More efficient than reshaping and using matmul.
-pub fn matvec(&self, vec: &Tensor) -> Tensor {
-    let (m, n) = (self.shape[0], self.shape[1]);
-    let mut result = vec![0.0f32; m];
-    for i in 0..m {
-        let mut sum = 0.0f32;
-        for j in 0..n {
-            sum += self.data[i * n + j] * vec.data[j];
-        }
-        result[i] = sum;
-    }
-    Tensor::new(result, vec![m])
-}`}
-        />
-
         {/* ============================================================ */}
-        {/* Key Takeaways */}
+        {/* WHAT YOU LEARNED */}
         {/* ============================================================ */}
         <div className="bg-[var(--color-accent-blue)]/10 border border-[var(--color-accent-blue)]/30 rounded-xl p-5 space-y-3">
           <h3 className="text-sm font-semibold text-[var(--color-accent-blue)]">
-            Key Takeaways
+            What You Just Learned
           </h3>
           <ul className="text-sm text-[var(--color-text-secondary)] space-y-2 list-disc list-inside">
             <li>
-              <strong>RMSNorm</strong> normalizes by root-mean-square only — no
-              mean subtraction, no bias. Cheaper than LayerNorm, works just as
-              well. Applied <em>before</em> each sub-layer (pre-norm).
+              <strong>RMSNorm</strong> = LayerNorm minus the mean. Cheaper, works
+              just as well. Applied before each sub-layer (pre-norm).
             </li>
             <li>
-              <strong>SiLU</strong> is <code>x * sigmoid(x)</code> — smooth,
-              no dead neurons. <strong>SwiGLU</strong> wraps it in a gated
-              structure with three weight matrices for better expressiveness.
+              <strong>SiLU</strong> = x &times; sigmoid(x). Smooth, no dead neurons.{" "}
+              <strong>SwiGLU</strong> adds a gating mechanism with 3 weight matrices.
             </li>
             <li>
-              <strong>RoPE</strong> rotates Q/K pairs by position-dependent
-              angles. The dot product naturally encodes <em>relative</em>{" "}
-              position — no learned position embeddings needed.
+              <strong>RoPE</strong> rotates Q/K by position angles. Dot product
+              encodes relative position from the geometry — no learned embeddings.
             </li>
             <li>
-              <strong>matvec</strong> is the inference-time workhorse — one
-              token at a time means matrix-vector, not matrix-matrix.
+              A <strong>transformer block</strong> is: RMSNorm → Attention (with RoPE)
+              → residual add → RMSNorm → SwiGLU FFN → residual add. Stack N times.
             </li>
           </ul>
         </div>
 
-        <ChapterNav current={9} />
+        {/* ============================================================ */}
+        {/* NEXT UP + NAV */}
+        {/* ============================================================ */}
+        <div className="bg-[var(--color-surface-raised)] border border-[var(--color-surface-overlay)] rounded-xl p-5 space-y-2">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+            Coming up next...
+          </h3>
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            You know every operation in a transformer. You know how model files
+            store the weights. Time for the grand finale: loading a real LLaMA
+            model and generating text, token by token, with the engine you built.
+          </p>
+        </div>
+
+        <LearnNav current={7} />
+        <ClaudePrompts chapter={7} />
       </div>
     </PageTransition>
   );

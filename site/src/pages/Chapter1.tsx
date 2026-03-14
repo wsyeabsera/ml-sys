@@ -1,3 +1,4 @@
+import ClaudePrompts from "../components/ui/ClaudePrompts";
 import { motion } from "framer-motion";
 import PageTransition from "../components/layout/PageTransition";
 import InfoCard from "../components/ui/InfoCard";
@@ -326,6 +327,7 @@ export default function Chapter1() {
         </div>
 
         <LearnNav current={1} />
+        <ClaudePrompts chapter={1} />
       </div>
     </PageTransition>
   );

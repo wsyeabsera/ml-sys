@@ -1,3 +1,4 @@
+import ClaudePrompts from "../components/ui/ClaudePrompts";
 import PageTransition from "../components/layout/PageTransition";
 import { motion } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
@@ -566,6 +567,7 @@ tanh:    tanh(0.013) = 0.013  (tanh of small values ≈ identity)`}
         </div>
 
         <LearnNav current={4} />
+        <ClaudePrompts chapter={4} />
       </div>
     </PageTransition>
   );

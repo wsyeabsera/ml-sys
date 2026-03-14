@@ -1,8 +1,9 @@
+import ClaudePrompts from "../components/ui/ClaudePrompts";
 import PageTransition from "../components/layout/PageTransition";
 import { motion } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
-import ChapterNav from "../components/ui/ChapterNav";
+import LearnNav from "../components/ui/LearnNav";
 import TransformerBlockViz from "../components/viz/TransformerBlockViz";
 
 export default function Chapter10() {
@@ -12,14 +13,14 @@ export default function Chapter10() {
         {/* Header */}
         <div className="space-y-4">
           <p className="text-sm font-mono text-[var(--color-accent-blue)]">
-            Chapter 10
+            Learn 08
           </p>
           <motion.h1
             className="text-4xl font-bold tracking-tight"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            Loading a Real Model
+            Running a Real LLM — The Grand Finale
           </motion.h1>
           <motion.p
             className="text-lg text-[var(--color-text-secondary)] max-w-2xl"
@@ -27,166 +28,102 @@ export default function Chapter10() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            Everything we've built — tensors, autograd, attention, GGUF, RMSNorm,
-            SwiGLU, RoPE — comes together. Load a LLaMA model from a GGUF file
-            and run inference.
+            Everything comes together. Load a LLaMA model from a GGUF file and
+            generate text, token by token, with the engine you built from
+            scratch.
           </motion.p>
         </div>
 
         {/* ============================================================ */}
-        {/* SECTION: The Big Picture */}
+        {/* HOOK */}
         {/* ============================================================ */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">
-            Putting It All Together
-          </h2>
-          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
-            <p>
-              A LLaMA model is surprisingly regular. It's just the same
-              transformer block repeated N times, bookended by an embedding
-              table and an output projection. Every operation inside is
-              something we've already built:
-            </p>
-            <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>Token embedding lookup → <code>tensor.row(token)</code></li>
-              <li>Normalization → <code>tensor.rms_norm(weight, eps)</code></li>
-              <li>Q/K/V projections → <code>weight.matvec(x)</code></li>
-              <li>Position encoding → <code>apply_rope_to_heads(...)</code></li>
-              <li>Attention with caching → <code>multi_head_attention(...)</code></li>
-              <li>SwiGLU FFN → <code>silu</code> + <code>mul</code> + <code>matvec</code></li>
-              <li>Residual connections → <code>x.add(&result)</code></li>
-            </ul>
-            <p>
-              The model struct just holds the weight tensors. The forward pass
-              is pure function calls on tensors.
-            </p>
-          </div>
-        </div>
-
-        {/* ============================================================ */}
-        {/* SECTION: Model Structure */}
-        {/* ============================================================ */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">Model Structure</h2>
-          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
-            <p>
-              The model has three parts: a config (hyperparameters from GGUF
-              metadata), global tensors (embedding, output projection, final
-              norm), and a list of transformer blocks (one per layer).
-            </p>
-          </div>
-        </div>
-
-        <CodeBlock
-          lang="rust"
-          code={`pub struct LlamaConfig {
-    pub dim: usize,         // embedding dimension (e.g., 288)
-    pub n_layers: usize,    // number of transformer blocks (e.g., 6)
-    pub n_heads: usize,     // number of attention heads (e.g., 6)
-    pub n_kv_heads: usize,  // KV heads (may differ for GQA)
-    pub vocab_size: usize,  // vocabulary size (e.g., 32000)
-    pub ffn_dim: usize,     // feedforward hidden dim (e.g., 768)
-    pub head_dim: usize,    // dim / n_heads
-    pub rms_eps: f32,       // RMSNorm epsilon (1e-5)
-}
-
-pub struct TransformerBlock {
-    pub attn_q: Tensor,       // [dim, dim]
-    pub attn_k: Tensor,       // [dim, kv_dim]
-    pub attn_v: Tensor,       // [dim, kv_dim]
-    pub attn_output: Tensor,  // [dim, dim]
-    pub attn_norm: Tensor,    // [dim]
-    pub ffn_gate: Tensor,     // [dim, ffn_dim]
-    pub ffn_down: Tensor,     // [ffn_dim, dim]
-    pub ffn_up: Tensor,       // [dim, ffn_dim]
-    pub ffn_norm: Tensor,     // [dim]
-}
-
-pub struct LlamaModel {
-    pub config: LlamaConfig,
-    pub token_embd: Tensor,   // [vocab_size, dim]
-    pub output: Tensor,       // [vocab_size, dim]
-    pub output_norm: Tensor,  // [dim]
-    pub blocks: Vec<TransformerBlock>,
-}`}
-        />
-
-        <InfoCard title="9 Tensors Per Block" accent="blue">
+        <InfoCard title="You already built everything" accent="emerald">
           <div className="space-y-2">
             <p>
-              Each transformer block has 9 weight tensors: 4 for attention
-              (Q, K, V, output), 1 attention norm, 3 for FFN (gate, up, down),
-              and 1 FFN norm. A 6-layer model has 54 block tensors plus 3
-              global ones = 57 tensors total. A 32-layer model (like LLaMA-7B)
-              has 291 tensors.
+              Here's what a LLaMA forward pass does: embed a token, normalize it,
+              project to Q/K/V, rotate with RoPE, attend, residual add, normalize
+              again, run through SwiGLU, residual add, repeat for N layers, final
+              norm, project to logits.
+            </p>
+            <p>
+              Every single one of those operations is something you already
+              understand. <code>matvec</code>, <code>rms_norm</code>,{" "}
+              <code>rope</code>, <code>silu</code>, <code>softmax</code>,{" "}
+              <code>add</code>. There's nothing new. It's just all of them,
+              stacked together, running on real weights from a real model file.
+            </p>
+            <p>
+              Let's wire it up.
             </p>
           </div>
         </InfoCard>
 
         {/* ============================================================ */}
-        {/* SECTION: Loading from GGUF */}
+        {/* SECTION: Model Structure */}
         {/* ============================================================ */}
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">Loading from GGUF</h2>
+          <h2 className="text-2xl font-semibold">
+            The Model Is Just a Bag of Tensors
+          </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              The <code>from_gguf</code> method reads the GGUF metadata to
-              build the config, then loads every weight tensor by name. GGUF
-              uses a naming convention:{" "}
-              <code>blk.{"{i}"}.attn_q.weight</code>,{" "}
-              <code>blk.{"{i}"}.ffn_gate.weight</code>, etc. We just iterate
-              over layers and load each one.
+              A LLaMA model has three parts: a config (from GGUF metadata),
+              some global tensors (embedding table, output projection, final
+              norm), and a list of transformer blocks. Each block has exactly
+              9 weight tensors — the same 9 from the previous chapter.
             </p>
           </div>
         </div>
 
         <CodeBlock
           lang="rust"
-          code={`impl LlamaModel {
-    pub fn from_gguf<R: Read + Seek>(gguf: &mut GgufFile<R>) -> io::Result<Self> {
-        // Read hyperparameters from metadata
-        let dim = gguf.metadata.get("llama.embedding_length")
-            .and_then(|v| v.as_u32()).unwrap() as usize;
-        let n_layers = gguf.metadata.get("llama.block_count")
-            .and_then(|v| v.as_u32()).unwrap() as usize;
-        // ... more config fields ...
+          code={`pub struct LlamaModel {
+    pub config: LlamaConfig,       // dim, n_layers, n_heads, vocab_size, ...
+    pub token_embd: Tensor,        // [vocab_size, dim] — lookup table
+    pub output: Tensor,            // [vocab_size, dim] — final projection
+    pub output_norm: Tensor,       // [dim] — final RMSNorm weights
+    pub blocks: Vec<TransformerBlock>,  // N identical blocks, different weights
+}
 
-        // Load global tensors
-        let token_embd = gguf.load_tensor("token_embd.weight")?;
-        let output_norm = gguf.load_tensor("output_norm.weight")?;
-        let output = gguf.load_tensor("output.weight")?;
-
-        // Load per-block tensors
-        let mut blocks = Vec::with_capacity(n_layers);
-        for i in 0..n_layers {
-            let block = TransformerBlock {
-                attn_q: gguf.load_tensor(&format!("blk.{}.attn_q.weight", i))?,
-                attn_k: gguf.load_tensor(&format!("blk.{}.attn_k.weight", i))?,
-                // ... remaining 7 tensors ...
-            };
-            blocks.push(block);
-        }
-        Ok(LlamaModel { config, token_embd, output, output_norm, blocks })
-    }
+// Each block has the same structure:
+pub struct TransformerBlock {
+    pub attn_q: Tensor,            // Q projection  [dim, dim]
+    pub attn_k: Tensor,            // K projection  [dim, kv_dim]
+    pub attn_v: Tensor,            // V projection  [dim, kv_dim]
+    pub attn_output: Tensor,       // output proj   [dim, dim]
+    pub attn_norm: Tensor,         // pre-attn norm  [dim]
+    pub ffn_gate: Tensor,          // SwiGLU gate   [dim, ffn_dim]
+    pub ffn_up: Tensor,            // SwiGLU up     [dim, ffn_dim]
+    pub ffn_down: Tensor,          // SwiGLU down   [ffn_dim, dim]
+    pub ffn_norm: Tensor,          // pre-FFN norm   [dim]
 }`}
         />
 
+        <InfoCard title="9 tensors per block, N blocks" accent="blue">
+          <p>
+            A 6-layer model has 6 &times; 9 = 54 block tensors + 3 global = 57
+            total. A 32-layer model (LLaMA-7B) has 291 tensors. A 80-layer
+            model (LLaMA-70B) has 723. Same structure every time — just more
+            layers with bigger matrices.
+          </p>
+        </InfoCard>
+
         {/* ============================================================ */}
-        {/* SECTION: The Forward Pass */}
+        {/* SECTION: Forward Pass */}
         {/* ============================================================ */}
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">The Forward Pass</h2>
+          <h2 className="text-2xl font-semibold">
+            The Forward Pass: One Token at a Time
+          </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              The forward pass processes <strong>one token at a time</strong>.
-              Given a token ID and position, it returns logits (unnormalized
-              scores) over the entire vocabulary. The highest-scoring token is
-              the model's prediction for the next token.
+              During inference, we process <strong>one token at a time</strong>.
+              Given a token ID and its position, the model returns logits —
+              a score for every token in the vocabulary. The highest score is the
+              prediction for the next token.
             </p>
             <p>
-              Click through the diagram below to see how data flows through a
-              single transformer block. In a 6-layer model, the block section
-              repeats 6 times before the final norm and output projection.
+              Click through the diagram to see data flow through a block:
             </p>
           </div>
         </div>
@@ -195,43 +132,32 @@ pub struct LlamaModel {
 
         <CodeBlock
           lang="rust"
-          code={`pub fn forward(
-    &self,
-    token: usize,
-    pos: usize,
-    key_cache: &mut Vec<Vec<Tensor>>,
-    value_cache: &mut Vec<Vec<Tensor>>,
+          code={`pub fn forward(&self, token: usize, pos: usize,
+    key_cache: &mut Cache, value_cache: &mut Cache,
 ) -> Tensor {
-    let mut x = self.token_embd.row(token);
+    let mut x = self.token_embd.row(token);    // embed the token
 
-    for (layer, block) in self.blocks.iter().enumerate() {
-        let x_norm = x.rms_norm(&block.attn_norm, cfg.rms_eps);
-
-        // Q, K, V + RoPE
+    for (i, block) in self.blocks.iter().enumerate() {
+        // === Attention sub-layer ===
+        let x_norm = x.rms_norm(&block.attn_norm, eps);
         let q = apply_rope(block.attn_q.matvec(&x_norm), pos);
         let k = apply_rope(block.attn_k.matvec(&x_norm), pos);
         let v = block.attn_v.matvec(&x_norm);
-
-        // Cache K, V for future tokens
-        key_cache[layer].push(k);
-        value_cache[layer].push(v);
-
-        // Multi-head attention over all cached positions
-        let attn = multi_head_attention(&q, &key_cache[layer],
-            &value_cache[layer], n_heads, n_kv_heads, head_dim);
+        key_cache[i].push(k);              // cache for future tokens
+        value_cache[i].push(v);
+        let attn = multi_head_attention(&q, &key_cache[i],
+            &value_cache[i], n_heads, n_kv_heads, head_dim);
         x = x.add(&block.attn_output.matvec(&attn));  // residual
 
-        // SwiGLU FFN
-        let x_norm2 = x.rms_norm(&block.ffn_norm, cfg.rms_eps);
-        let gate = block.ffn_gate.matvec(&x_norm2).silu();
-        let up   = block.ffn_up.matvec(&x_norm2);
-        let ffn  = block.ffn_down.matvec(&gate.mul(&up));
-        x = x.add(&ffn);  // residual
+        // === FFN sub-layer ===
+        let x_norm = x.rms_norm(&block.ffn_norm, eps);
+        let gate = block.ffn_gate.matvec(&x_norm).silu();
+        let up = block.ffn_up.matvec(&x_norm);
+        x = x.add(&block.ffn_down.matvec(&gate.mul(&up)));  // residual
     }
 
-    // Final norm → output projection → logits
-    let x_norm = x.rms_norm(&self.output_norm, cfg.rms_eps);
-    self.output.matvec(&x_norm)
+    let x_norm = x.rms_norm(&self.output_norm, eps);
+    self.output.matvec(&x_norm)  // → logits [vocab_size]
 }`}
         />
 
@@ -239,25 +165,21 @@ pub struct LlamaModel {
         {/* SECTION: KV Cache */}
         {/* ============================================================ */}
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">The KV Cache</h2>
+          <h2 className="text-2xl font-semibold">
+            The KV Cache: Don't Recompute What You Already Know
+          </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              When generating text, you predict one token, append it, then
-              predict the next. Without caching, you'd recompute K and V for{" "}
-              <em>all previous tokens</em> at every step — O(n&sup2;) work.
+              When generating "The cat sat on the ___", by the time you're
+              predicting the blank you've already computed K and V for "The",
+              "cat", "sat", "on", "the" at every layer. Recomputing them all
+              from scratch at every step would be O(n&sup2;) — painfully slow.
             </p>
             <p>
-              The <strong>KV cache</strong> stores the K and V vectors for each
-              layer at each position. When processing token <code>t</code>,
-              you only compute the new Q, K, V for position <code>t</code>,
-              then attend over the full cache. This makes generation O(n) per
-              token instead of O(n&sup2;).
-            </p>
-            <p>
-              In our implementation, the cache is a
-              simple <code>Vec&lt;Vec&lt;Tensor&gt;&gt;</code> — a vector of
-              vectors indexed by [layer][position]. Production implementations
-              pre-allocate contiguous memory for the maximum sequence length.
+              The <strong>KV cache</strong> stores them. Each new token only
+              computes its own Q, K, V, then attends over the full cache. This
+              makes generation O(n) per token. It's the single biggest
+              optimization in LLM serving.
             </p>
           </div>
         </div>
@@ -265,153 +187,146 @@ pub struct LlamaModel {
         <InfoCard title="Group Query Attention (GQA)" accent="amber">
           <div className="space-y-2">
             <p>
-              In standard multi-head attention, each head has its own Q, K, and
-              V. In <strong>Group Query Attention</strong>, multiple Q heads
-              share the same K and V head. If you have 32 Q heads but only 8 KV
-              heads, each KV head serves 4 Q heads.
-            </p>
-            <p>
-              This reduces the KV cache size by 4x — a huge win for long
-              sequences. Our implementation handles this with{" "}
-              <code>kv_head = h / kv_group_size</code>, so multiple Q heads
-              index into the same KV slot.
+              Standard multi-head attention: each head has its own Q, K, V.
+              Group Query Attention: multiple Q heads share the same K/V head.
+              32 Q heads with 8 KV heads = 4x smaller cache. Minimal quality
+              loss, huge memory savings for long sequences.
             </p>
           </div>
         </InfoCard>
 
         {/* ============================================================ */}
-        {/* SECTION: Token Generation */}
+        {/* SECTION: Generation */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            Token-by-Token Generation
+            Generation: The Autoregressive Loop
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              Text generation is autoregressive: the model predicts one token,
-              we append it to the sequence, and repeat. The <code>generate</code>{" "}
-              method handles the full loop:
+              Text generation is embarrassingly simple: predict one token, append
+              it, predict the next. Repeat until you're done.
             </p>
             <ol className="list-decimal list-inside space-y-1 ml-2">
-              <li>
-                Process all prompt tokens (filling the KV cache)
-              </li>
-              <li>
-                Sample the next token from the final logits
-              </li>
-              <li>
-                Feed that token back in at the next position
-              </li>
-              <li>
-                Repeat until <code>max_tokens</code>
-              </li>
+              <li>Process all prompt tokens (fills the KV cache)</li>
+              <li>Sample the next token from the logits</li>
+              <li>Feed that token back in at the next position</li>
+              <li>Repeat until max_tokens or end-of-sequence</li>
             </ol>
           </div>
         </div>
 
         <CodeBlock
           lang="rust"
-          code={`pub fn generate(
-    &self,
-    prompt_tokens: &[usize],
-    max_tokens: usize,
+          code={`pub fn generate(&self, prompt: &[usize], max_tokens: usize,
     temperature: f32,
 ) -> Vec<usize> {
-    let mut key_cache = /* ... */;
-    let mut value_cache = /* ... */;
-    let mut tokens = prompt_tokens.to_vec();
+    let mut cache = init_cache(self.config.n_layers);
+    let mut tokens = prompt.to_vec();
 
-    // Process prompt (fill KV cache)
-    for (pos, &token) in prompt_tokens.iter().enumerate() {
-        let logits = self.forward(token, pos, &mut key_cache, &mut value_cache);
-        if pos == prompt_tokens.len() - 1 {
-            tokens.push(sample_token(&logits, temperature));
+    // Process prompt (fills KV cache)
+    for (pos, &tok) in prompt.iter().enumerate() {
+        let logits = self.forward(tok, pos, &mut cache);
+        if pos == prompt.len() - 1 {
+            tokens.push(sample(&logits, temperature));
         }
     }
 
     // Generate new tokens
-    for i in 0..max_tokens.saturating_sub(1) {
-        let pos = prompt_tokens.len() + i;
-        let logits = self.forward(*tokens.last().unwrap(), pos,
-            &mut key_cache, &mut value_cache);
-        tokens.push(sample_token(&logits, temperature));
+    for i in 0..max_tokens - 1 {
+        let logits = self.forward(*tokens.last().unwrap(),
+            prompt.len() + i, &mut cache);
+        tokens.push(sample(&logits, temperature));
     }
 
-    tokens[prompt_tokens.len()..].to_vec()
+    tokens[prompt.len()..].to_vec()
 }`}
         />
 
-        <InfoCard title="Temperature Sampling" accent="emerald">
-          <div className="space-y-2">
+        <div className="grid gap-4 md:grid-cols-2">
+          <InfoCard title="Temperature = 0" accent="blue">
             <p>
-              The <code>temperature</code> parameter controls randomness.
-              At <strong>temperature = 0</strong>, we always pick the
-              highest-scoring token (greedy/argmax). At <strong>temperature
-              = 1</strong>, we sample proportional to the softmax
-              probabilities. Higher temperature = more random, lower = more
-              deterministic.
+              Always pick the highest-scoring token (greedy/argmax).
+              Deterministic — same input always gives same output. Good for
+              factual answers, bad for creative text.
             </p>
+          </InfoCard>
+          <InfoCard title="Temperature = 1" accent="rose">
             <p>
-              The formula is <code>softmax(logits / temperature)</code>.
-              Dividing by a large temperature flattens the distribution;
-              dividing by a small temperature sharpens it. It's the same
-              "temperature" concept from Chapter 7's softmax discussion — just
-              now we're using it for generation.
+              Sample proportionally to the softmax probabilities. Random but
+              sensible — the model's uncertainty is reflected in the output.
+              Higher temperature = more chaos, lower = more focused.
             </p>
-          </div>
-        </InfoCard>
+          </InfoCard>
+        </div>
 
         {/* ============================================================ */}
         {/* SECTION: Tokenization */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            Tokenization
+            Tokenization: Words Are Just Numbers
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              The model works with integer token IDs, not text. The vocabulary
-              is stored in the GGUF metadata under{" "}
-              <code>tokenizer.ggml.tokens</code> — an array of strings indexed
-              by token ID. Our code extracts this to convert between text and
-              IDs.
+              The model doesn't see text — it sees integer token IDs. The
+              vocabulary (stored in the GGUF metadata) maps between the two.
+              LLaMA uses SentencePiece tokenization where the special character{" "}
+              <code>&lsquo;&radic;&rsquo;</code> represents a space, so{" "}
+              <code>&ldquo;&radic;the&rdquo;</code> decodes to{" "}
+              <code>&ldquo; the&rdquo;</code>.
             </p>
             <p>
-              LLaMA uses <strong>SentencePiece</strong> tokenization, where the
-              special character <code>&lsquo;▁&rsquo;</code> (U+2581) represents a
-              space. So the token <code>&ldquo;▁the&rdquo;</code> decodes to{" "}
-              <code>&ldquo; the&rdquo;</code>. Our decoder handles this
-              replacement.
+              Our tokenizer is naive (whitespace splitting + vocab lookup).
+              Real tokenizers do subword segmentation (BPE) to handle unknown
+              words. But for understanding the pipeline, naive is fine.
             </p>
           </div>
         </div>
 
-        <CodeBlock
-          lang="rust"
-          code={`/// Extract vocabulary from GGUF metadata.
-pub fn extract_vocab<R: Read + Seek>(gguf: &GgufFile<R>) -> Vec<String> {
-    match gguf.metadata.get("tokenizer.ggml.tokens") {
-        Some(MetadataValue::Array(tokens)) => tokens.iter()
-            .map(|v| match v {
-                MetadataValue::String(s) => s.clone(),
-                _ => "?".to_string(),
-            })
-            .collect(),
-        _ => Vec::new(),
-    }
-}
-
-/// Decode token IDs to text.
-pub fn decode_tokens(vocab: &[String], tokens: &[usize]) -> String {
-    tokens.iter()
-        .filter_map(|&id| vocab.get(id))
-        .map(|t| t.replace('▁', " "))
-        .collect()
-}`}
-        />
+        {/* ============================================================ */}
+        {/* WHAT YOU BUILT */}
+        {/* ============================================================ */}
+        <div className="bg-[var(--color-accent-emerald)]/10 border border-[var(--color-accent-emerald)]/30 rounded-xl p-5 space-y-4">
+          <h2 className="text-xl font-bold text-[var(--color-accent-emerald)]">
+            What You Just Built
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+            <p>
+              Over 8 chapters, you built — from scratch, in Rust — every component
+              of a working language model:
+            </p>
+            <ol className="list-decimal list-inside space-y-1 ml-2">
+              <li><strong>Tensors</strong> — flat arrays with shape/stride metadata</li>
+              <li><strong>Autograd</strong> — computation graphs with automatic differentiation</li>
+              <li><strong>Layers & MLPs</strong> — matmul + bias + nonlinearity, stacked</li>
+              <li><strong>Attention</strong> — dynamic token-to-token relevance scoring</li>
+              <li><strong>GGUF loader</strong> — parsing real model files</li>
+              <li><strong>Transformer blocks</strong> — RMSNorm, RoPE, SwiGLU</li>
+              <li><strong>Inference engine</strong> — KV cache, generation loop, sampling</li>
+            </ol>
+            <p>
+              This is not a toy. It's the same architecture that powers ChatGPT,
+              Claude, LLaMA, and every other modern language model. The only
+              difference is scale — they use bigger matrices on faster hardware.
+              The <em>concepts</em> are identical.
+            </p>
+            <p>
+              You now understand, at the systems level, what happens when you
+              type a prompt into an AI chatbot. Not "it uses transformers." You
+              know what a transformer <em>is</em>, how it computes attention,
+              why it needs RoPE, what the KV cache does, how the weights are
+              stored, and how generation works token by token.
+            </p>
+            <p>
+              That's not something most people who <em>use</em> these models
+              every day can say.
+            </p>
+          </div>
+        </div>
 
         {/* ============================================================ */}
-        {/* Key Takeaways */}
+        {/* WHAT YOU LEARNED */}
         {/* ============================================================ */}
         <div className="bg-[var(--color-accent-blue)]/10 border border-[var(--color-accent-blue)]/30 rounded-xl p-5 space-y-3">
           <h3 className="text-sm font-semibold text-[var(--color-accent-blue)]">
@@ -419,38 +334,31 @@ pub fn decode_tokens(vocab: &[String], tokens: &[usize]) -> String {
           </h3>
           <ul className="text-sm text-[var(--color-text-secondary)] space-y-2 list-disc list-inside">
             <li>
-              A LLaMA model is <strong>embedding → N transformer blocks →
-              output projection</strong>. Each block: RMSNorm → attention →
-              residual → RMSNorm → SwiGLU FFN → residual.
+              A LLaMA model = <strong>embedding → N transformer blocks → output
+              projection</strong>. Each block: norm → attention → residual → norm →
+              SwiGLU → residual.
             </li>
             <li>
-              <strong>from_gguf</strong> reads metadata for the config and loads
-              each tensor by its GGUF name. A naming convention (
-              <code>blk.N.attn_q.weight</code>) makes this mechanical.
+              The <strong>KV cache</strong> makes generation O(n) per token instead
+              of O(n&sup2;). It's the most important optimization in LLM serving.
             </li>
             <li>
-              The <strong>KV cache</strong> makes generation O(n) per token
-              instead of O(n&sup2;). Store K and V from all past positions,
-              only compute the new ones.
+              <strong>GQA</strong> shares KV heads across Q heads for 4x cache
+              reduction.
             </li>
             <li>
-              <strong>Group Query Attention</strong> shares KV heads across
-              multiple Q heads — reduces cache memory with minimal quality loss.
+              <strong>Generation</strong> is autoregressive: predict → append →
+              repeat. Temperature controls randomness.
             </li>
             <li>
-              <strong>Generation</strong> is autoregressive: predict one token,
-              feed it back, repeat. Temperature controls the randomness of
-              sampling.
-            </li>
-            <li>
-              Every operation in the forward pass — matvec, rms_norm, silu,
-              rope, softmax, add — is something we built from scratch in
-              earlier chapters.
+              Every operation in the forward pass is something you built from
+              scratch earlier. Nothing is magic.
             </li>
           </ul>
         </div>
 
-        <ChapterNav current={10} />
+        <LearnNav current={8} />
+        <ClaudePrompts chapter={8} />
       </div>
     </PageTransition>
   );
