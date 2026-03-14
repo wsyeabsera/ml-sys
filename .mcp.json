@@ -4,6 +4,11 @@
       "command": "/Users/yab/Projects/ml-sys/rs-tensor/target/debug/mcp",
       "args": [],
       "cwd": "/Users/yab/Projects/ml-sys/rs-tensor"
+    },
+    "teaching": {
+      "command": "/Users/yab/Projects/ml-sys/teaching-mcp/target/debug/teaching-mcp",
+      "args": [],
+      "cwd": "/Users/yab/Projects/ml-sys/teaching-mcp"
     }
   }
 }
