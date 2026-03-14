@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
-
-const BRIDGE_URL = "http://localhost:3001";
+import { loadSettings } from "../pages/Settings";
 
 export type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
@@ -18,7 +17,8 @@ export function useBridge() {
   const [toolNames, setToolNames] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const socket = io(BRIDGE_URL, {
+    const { bridgeUrl } = loadSettings();
+    const socket = io(bridgeUrl, {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: Infinity,
@@ -75,5 +75,18 @@ export function useBridge() {
     [],
   );
 
-  return { status, callTool, toolNames };
+  const resetMcp = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      const socket = socketRef.current;
+      if (!socket?.connected) {
+        resolve();
+        return;
+      }
+      socket.emit("reset", () => {
+        resolve();
+      });
+    });
+  }, []);
+
+  return { status, callTool, toolNames, resetMcp };
 }

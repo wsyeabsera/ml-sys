@@ -3,6 +3,7 @@ import { useBridge } from "./useBridge";
 import { useEvalWorker } from "./useEvalWorker";
 import { isMcpCall, parseMcpCall } from "../lib/mcp-shorthand";
 import { loadSession, saveSession, clearSession } from "../lib/db";
+import { loadSettings } from "../pages/Settings";
 
 export interface HistoryEntry {
   id: number;
@@ -13,7 +14,7 @@ export interface HistoryEntry {
 }
 
 export function useRepl() {
-  const { status, callTool, toolNames } = useBridge();
+  const { status, callTool, toolNames, resetMcp: bridgeResetMcp } = useBridge();
   const { evaluate } = useEvalWorker();
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [running, setRunning] = useState(false);
@@ -42,7 +43,8 @@ export function useRepl() {
   // Persist commands whenever they change
   useEffect(() => {
     if (commandHistory.length > 0) {
-      saveSession(commandHistory);
+      const { maxHistory } = loadSettings();
+      saveSession(commandHistory, maxHistory);
     }
   }, [commandHistory]);
 
@@ -138,11 +140,17 @@ export function useRepl() {
     [commandHistory, historyIndex],
   );
 
+  const resetMcp = useCallback(async () => {
+    await bridgeResetMcp();
+  }, [bridgeResetMcp]);
+
   return {
     history,
     running,
     status,
     execute,
     navigateHistory,
+    resetMcp,
+    commandHistory,
   };
 }

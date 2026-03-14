@@ -7,11 +7,13 @@ interface ReplInputProps {
   onExecute: (code: string) => void;
   onNavigateHistory: (direction: "up" | "down") => string | null;
   disabled: boolean;
+  fontSize?: number;
 }
 
-const editorStyles = EditorView.theme({
+function makeEditorStyles(fontSize: number) {
+  return EditorView.theme({
   "&": {
-    fontSize: "13px",
+    fontSize: `${fontSize}px`,
     backgroundColor: "transparent !important",
     color: "var(--color-text-primary)",
   },
@@ -35,11 +37,13 @@ const editorStyles = EditorView.theme({
     color: "var(--color-text-muted)",
   },
 });
+}
 
 export default function ReplInput({
   onExecute,
   onNavigateHistory,
   disabled,
+  fontSize = 13,
 }: ReplInputProps) {
   const cmRef = useRef<ReactCodeMirrorRef>(null);
 
@@ -51,7 +55,7 @@ export default function ReplInput({
   const extensions = useCallback(
     () => [
       javascript({ typescript: true }),
-      editorStyles,
+      makeEditorStyles(fontSize),
       Prec.highest(
         keymap.of([
           {
@@ -125,7 +129,7 @@ export default function ReplInput({
         ]),
       ),
     ],
-    [],
+    [fontSize],
   );
 
   return (

@@ -39,14 +39,17 @@ export async function loadSession(): Promise<string[]> {
   }
 }
 
-export async function saveSession(commands: string[]): Promise<void> {
+export async function saveSession(commands: string[], maxHistory?: number): Promise<void> {
   try {
     const db = await getDb();
     const existing = await db.get(STORE_NAME, DEFAULT_SESSION_ID) as Session | undefined;
+    const trimmed = maxHistory && commands.length > maxHistory
+      ? commands.slice(-maxHistory)
+      : commands;
     const session: Session = {
       id: DEFAULT_SESSION_ID,
       name: "Default",
-      commands,
+      commands: trimmed,
       createdAt: existing?.createdAt ?? Date.now(),
       updatedAt: Date.now(),
     };
