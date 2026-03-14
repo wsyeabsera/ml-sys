@@ -3,30 +3,26 @@ import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { keymap, EditorView } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
-
 interface ReplInputProps {
   onExecute: (code: string) => void;
   onNavigateHistory: (direction: "up" | "down") => string | null;
   disabled: boolean;
 }
 
-const theme = EditorView.theme({
+const editorStyles = EditorView.theme({
   "&": {
     fontSize: "13px",
-    backgroundColor: "transparent",
+    backgroundColor: "transparent !important",
+    color: "var(--color-text-primary)",
   },
   ".cm-gutters": {
     display: "none",
   },
   ".cm-content": {
     padding: "0",
-    caretColor: "var(--color-accent-blue)",
   },
   ".cm-line": {
     padding: "0",
-  },
-  ".cm-focused .cm-cursor": {
-    borderLeftColor: "var(--color-accent-blue)",
   },
   "&.cm-focused": {
     outline: "none",
@@ -34,6 +30,9 @@ const theme = EditorView.theme({
   ".cm-scroller": {
     fontFamily:
       "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  },
+  ".cm-placeholder": {
+    color: "var(--color-text-muted)",
   },
 });
 
@@ -44,17 +43,15 @@ export default function ReplInput({
 }: ReplInputProps) {
   const cmRef = useRef<ReactCodeMirrorRef>(null);
 
-  // Store callbacks in refs so the keymap closure always has the latest
   const onExecuteRef = useRef(onExecute);
   onExecuteRef.current = onExecute;
   const onNavRef = useRef(onNavigateHistory);
   onNavRef.current = onNavigateHistory;
 
-  // Build extensions once — refs ensure we always call the latest callbacks
   const extensions = useCallback(
     () => [
       javascript({ typescript: true }),
-      theme,
+      editorStyles,
       Prec.highest(
         keymap.of([
           {
@@ -133,6 +130,7 @@ export default function ReplInput({
         <CodeMirror
           ref={cmRef}
           value=""
+          theme="dark"
           extensions={extensions()}
           placeholder={
             disabled
