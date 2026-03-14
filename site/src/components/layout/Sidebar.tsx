@@ -3,21 +3,24 @@ import { NavLink, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "../../hooks/useTheme";
 
-const chapters = [
-  { path: "/ch/1", num: 1, title: "Getting Started", icon: "01" },
-  { path: "/ch/2", num: 2, title: "What is a Tensor", icon: "02" },
-  { path: "/ch/3", num: 3, title: "Phase 1 Recap", icon: "03" },
-  { path: "/ch/4", num: 4, title: "The MCP Server", icon: "04" },
-  { path: "/ch/5", num: 5, title: "Autograd Engine", icon: "05" },
-  { path: "/ch/6", num: 6, title: "Layers & MLPs", icon: "06" },
-  { path: "/ch/7", num: 7, title: "Attention", icon: "07" },
-  { path: "/ch/8", num: 8, title: "GGUF Model Files", icon: "08" },
-  { path: "/ch/9", num: 9, title: "Transformer Blocks", icon: "09" },
-  { path: "/ch/10", num: 10, title: "Loading a Real Model", icon: "10" },
+const learnChapters = [
+  { path: "/learn/1", icon: "01", title: "What Are We Building?" },
+  { path: "/learn/2", icon: "02", title: "Tensors" },
+  { path: "/learn/3", icon: "03", title: "Autograd" },
+  { path: "/learn/4", icon: "04", title: "Neural Networks" },
+  { path: "/learn/5", icon: "05", title: "Attention" },
+  { path: "/learn/6", icon: "06", title: "Model Files" },
+  { path: "/learn/7", icon: "07", title: "Transformers" },
+  { path: "/learn/8", icon: "08", title: "Running a Real LLM" },
 ];
 
 const playgroundItems = [
   { path: "/playground", title: "REPL", icon: ">_" },
+  { path: "/reference", title: "Tool Reference", icon: "??" },
+];
+
+const miscItems = [
+  { path: "/misc/mcp-server", title: "The MCP Server", icon: "**" },
 ];
 
 // Persist collapse state
@@ -96,15 +99,7 @@ function SettingsIcon() {
 
 // --- Nav link component ---
 
-function SidebarLink({
-  to,
-  icon,
-  title,
-}: {
-  to: string;
-  icon: string;
-  title: string;
-}) {
+function SidebarLink({ to, icon, title }: { to: string; icon: string; title: string }) {
   return (
     <NavLink to={to} className="block">
       {({ isActive }) => (
@@ -136,15 +131,7 @@ function SidebarLink({
 
 // --- Section header ---
 
-function SectionHeader({
-  label,
-  open,
-  onToggle,
-}: {
-  label: string;
-  open: boolean;
-  onToggle: () => void;
-}) {
+function SectionHeader({ label, open, onToggle }: { label: string; open: boolean; onToggle: () => void }) {
   return (
     <button
       onClick={onToggle}
@@ -156,26 +143,58 @@ function SectionHeader({
   );
 }
 
+// --- Collapsible section ---
+
+function Section({
+  label,
+  stateKey,
+  defaultOpen,
+  items,
+}: {
+  label: string;
+  stateKey: string;
+  defaultOpen: boolean;
+  items: { path: string; icon: string; title: string }[];
+}) {
+  const [open, toggle] = useSectionState(stateKey, defaultOpen);
+  const location = useLocation();
+
+  // Auto-expand when navigating into this section
+  useEffect(() => {
+    if (!open && items.some((item) => location.pathname.startsWith(item.path))) {
+      toggle();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  return (
+    <div>
+      <SectionHeader label={label} open={open} onToggle={toggle} />
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="pl-2 space-y-0.5">
+              {items.map((item) => (
+                <SidebarLink key={item.path} to={item.path} icon={item.icon} title={item.title} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // --- Main sidebar ---
 
 export default function Sidebar() {
   const { theme, toggle } = useTheme();
-  const location = useLocation();
-
-  const [playgroundOpen, togglePlayground] = useSectionState("playground", true);
-  const [chaptersOpen, toggleChapters] = useSectionState("chapters", true);
-
-  // Auto-expand section when navigating to a page within it
-  useEffect(() => {
-    if (location.pathname.startsWith("/ch/") && !chaptersOpen) {
-      toggleChapters();
-    }
-    if (location.pathname.startsWith("/playground") && !playgroundOpen) {
-      togglePlayground();
-    }
-    // Only run on path change, not on toggle state changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
 
   return (
     <aside className="fixed top-0 left-0 w-64 h-screen bg-[var(--color-surface-raised)] border-r border-[var(--color-surface-overlay)] flex flex-col transition-colors duration-200">
@@ -190,53 +209,14 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {/* Playground section */}
-        <SectionHeader label="Playground" open={playgroundOpen} onToggle={togglePlayground} />
-        <AnimatePresence initial={false}>
-          {playgroundOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="pl-2 space-y-0.5">
-                {playgroundItems.map((item) => (
-                  <SidebarLink key={item.path} to={item.path} icon={item.icon} title={item.title} />
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Chapters section */}
-        <div className="pt-2">
-          <SectionHeader label="Chapters" open={chaptersOpen} onToggle={toggleChapters} />
-          <AnimatePresence initial={false}>
-            {chaptersOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="pl-2 space-y-0.5">
-                  {chapters.map((ch) => (
-                    <SidebarLink key={ch.path} to={ch.path} icon={ch.icon} title={ch.title} />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+      <nav className="flex-1 p-3 space-y-2 overflow-y-auto">
+        <Section label="Playground" stateKey="playground" defaultOpen={true} items={playgroundItems} />
+        <Section label="Learn" stateKey="learn" defaultOpen={true} items={learnChapters} />
+        <Section label="Misc" stateKey="misc" defaultOpen={false} items={miscItems} />
       </nav>
 
       {/* Footer */}
       <div className="p-3 border-t border-[var(--color-surface-overlay)] space-y-1">
-        {/* Settings link */}
         <NavLink to="/settings" className="block">
           {({ isActive }) => (
             <div
@@ -251,17 +231,12 @@ export default function Sidebar() {
             </div>
           )}
         </NavLink>
-
-        {/* Theme toggle */}
         <div className="flex items-center justify-between px-3 py-1">
-          <p className="text-xs text-[var(--color-text-muted)]">
-            Built with Rust + React
-          </p>
+          <p className="text-xs text-[var(--color-text-muted)]">Built with Rust + React</p>
           <button
             onClick={toggle}
             className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-overlay)] transition-colors"
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-            title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           >
             <motion.div
               key={theme}

@@ -2,7 +2,8 @@ import PageTransition from "../components/layout/PageTransition";
 import { motion } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
-import ChapterNav from "../components/ui/ChapterNav";
+import TryThis from "../components/ui/TryThis";
+import LearnNav from "../components/ui/LearnNav";
 import ComputationGraph3D from "../components/three/ComputationGraph";
 import GradientFlow from "../components/viz/GradientFlow";
 import SimpleGraph from "../components/viz/SimpleGraph";
@@ -22,14 +23,14 @@ export default function Chapter5() {
         {/* Header */}
         <div className="space-y-4">
           <p className="text-sm font-mono text-[var(--color-accent-blue)]">
-            Chapter 05
+            Learn 03
           </p>
           <motion.h1
             className="text-4xl font-bold tracking-tight"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            The Autograd Engine
+            Autograd — Teaching Machines to Learn From Their Mistakes
           </motion.h1>
           <motion.p
             className="text-lg text-[var(--color-text-secondary)] max-w-2xl"
@@ -37,99 +38,103 @@ export default function Chapter5() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            Teaching the computer to compute its own gradients. Record the forward
-            pass, then replay it backwards with the chain rule. This is how every
-            modern ML framework — PyTorch, JAX, TensorFlow — trains neural networks.
+            Record the forward pass, replay it backwards with the chain rule,
+            and suddenly your computer can compute its own gradients. This is
+            how every ML framework trains neural networks.
           </motion.p>
         </div>
 
         {/* ============================================================ */}
-        {/* SECTION: What is a Gradient, Actually? */}
+        {/* HOOK */}
         {/* ============================================================ */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">
-            What is a Gradient, Actually?
-          </h2>
-          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
-            <p>
-              Before computation graphs and chain rules, let's nail the core
-              idea. A gradient tells you:{" "}
-              <strong>
-                "if I nudge this input a tiny bit, how much does the output
-                change?"
-              </strong>
-            </p>
-            <p>
-              Take the simplest case: <code>y = 3x</code>. If x = 2, then y = 6.
-              If x = 2.001, then y = 6.003. The output changed by 0.003 when we
-              nudged the input by 0.001. The ratio is 3 — that's the gradient.
-              It's just the slope.
-            </p>
-            <p>
-              Now a slightly harder one: <code>y = x²</code>. If x = 2, y = 4.
-              If x = 2.001, y = 4.004001. The gradient ≈ 4 (which is 2x,
-              the derivative you'd compute in calculus). At x = 5, the gradient
-              would be 10 — same function, different slope at a different point.
-            </p>
-          </div>
-        </div>
-
-        <InfoCard title="Why Gradients Matter for ML" accent="blue">
+        <InfoCard title="The most important idea in all of ML" accent="emerald">
           <div className="space-y-2">
             <p>
-              In machine learning, the "output" is the <strong>loss</strong>{" "}
-              (error) — how wrong the model's predictions are. The "inputs" are
-              the <strong>weights</strong> — the millions of numbers the model
-              uses to compute predictions.
+              Here's the question that makes machine learning possible: "if I
+              wiggle this number a tiny bit, how much does the error change?"
             </p>
             <p>
-              Gradients tell us which direction to adjust each weight to reduce
-              the error. Weight with a positive gradient? Decrease it. Negative
-              gradient? Increase it. The magnitude tells you how much the weight
-              matters — big gradient means this weight has a big effect on the
-              error.
+              That's it. That's a gradient. It's not scary calculus — it's just
+              a ratio. Nudge the input by 0.001, see how much the output moves.
+              The ratio is the gradient. It's literally just the slope.
             </p>
             <p>
-              That's gradient descent in one sentence:{" "}
-              <strong>compute gradients, then nudge weights in the opposite
-              direction.</strong>
+              The magic isn't computing <em>one</em> gradient — that's easy. The
+              magic is computing <em>millions</em> of them simultaneously, for
+              every weight in a neural network, automatically. That's what
+              autograd does. Let's build it.
             </p>
           </div>
         </InfoCard>
 
         {/* ============================================================ */}
-        {/* SECTION: What's a Computation Graph? */}
+        {/* SECTION: What is a Gradient */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            What's a Computation Graph?
+            Gradients: It's Just Slope
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              Before we tackle a neuron, let's start with the simplest possible
-              example: <code>y = a * b + c</code> where a = 2, b = 3, c = 1.
+              Take <code>y = 3x</code>. If x = 2, then y = 6. Bump x to 2.001
+              and y becomes 6.003. The output moved 3x as much as the input —
+              gradient is 3. That's the slope of the line. Thrilling, right?
             </p>
             <p>
-              Every computation can be broken into a graph of simple operations.
-              Here, there are two operations: one multiply and one add. The
-              graph has 5 nodes (3 inputs + 2 operations) and flows left to right.
+              Slightly harder: <code>y = x²</code>. At x = 2, y = 4. At x =
+              2.001, y = 4.004001. Gradient ≈ 4 (which is 2x). At x = 5, the
+              gradient would be 10. Same function, different slope at different
+              points.
+            </p>
+            <p>
+              Now the important part: in ML, the "output" is the{" "}
+              <strong>loss</strong> (how wrong the model is), and the "inputs"
+              are the <strong>weights</strong> (the knobs the model can turn).
+              Gradients tell you which way to turn each knob to make the error
+              smaller. Positive gradient? Turn it down. Negative? Turn it up.
+              That's gradient descent. Literally the entire training algorithm in
+              two sentences.
+            </p>
+          </div>
+        </div>
+
+        <TryThis
+          commands={[
+            'autograd_expr([["a", 2], ["b", 3], ["c", 1]], [["d", "mul", "a", "b"], ["e", "add", "d", "c"]], "e")',
+          ]}
+          label="Compute gradients for y = a*b + c"
+        />
+
+        {/* ============================================================ */}
+        {/* SECTION: Computation Graphs */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">
+            Computation Graphs: Breaking Math Into Tiny Steps
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+            <p>
+              Take <code>y = a * b + c</code> where a=2, b=3, c=1. That's two
+              operations: one multiply and one add. We can draw this as a graph
+              — inputs on the left, operations in the middle, output on the
+              right.
             </p>
             <p>
               Step through the forward pass to see values computed, then step
-              backward to see gradients flow in reverse. <strong>Pay attention
-              to the explanation panel below the graph</strong> — it shows the
-              exact formula applied at each step.
+              backward to see gradients flow in reverse.{" "}
+              <strong>Pay attention to the explanation panel</strong> — it shows
+              the exact formula at each step.
             </p>
           </div>
         </div>
 
         <SimpleGraph />
 
-        <InfoCard title="What Just Happened?" accent="emerald">
+        <InfoCard title="What just happened in that graph?" accent="emerald">
           <div className="space-y-2">
             <p>
-              <strong>Forward:</strong> We computed y = a*b + c = 2*3 + 1 = 7.
-              Values flowed left → right.
+              <strong>Forward:</strong> We computed y = 2*3 + 1 = 7. Values
+              flowed left → right. Nothing surprising.
             </p>
             <p>
               <strong>Backward:</strong> Starting from dy/dy = 1 (the output's
@@ -138,181 +143,75 @@ export default function Chapter5() {
             </p>
             <ul className="list-disc list-inside space-y-1">
               <li>
-                <strong>add node:</strong> Addition passes the gradient through
-                unchanged. Both inputs (mul, c) get gradient = 1.
+                <strong>add:</strong> passes gradient through unchanged. Both
+                inputs get gradient = 1.
               </li>
               <li>
-                <strong>mul node:</strong> For multiplication, the local
-                gradient of <code>a</code> is <code>b</code> (and vice versa).
-                So a.grad = b * incoming = 3 * 1 = 3, and b.grad = a *
-                incoming = 2 * 1 = 2.
+                <strong>mul:</strong> gradient of a is b (= 3), gradient of b is
+                a (= 2). Multiply by incoming gradient (1).
               </li>
             </ul>
             <p>
-              That's the entire algorithm. Everything else — neurons, layers,
-              transformers — is just bigger graphs with the same two ideas:
-              forward computes values, backward propagates gradients.
+              That's the <em>entire</em> algorithm. Forward computes values,
+              backward propagates gradients. Neurons, layers, transformers —
+              it's all just bigger versions of this.
             </p>
           </div>
         </InfoCard>
 
         {/* ============================================================ */}
-        {/* SECTION: Topological Sort */}
+        {/* SECTION: The Chain Rule */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            Topological Sort: Why Order Matters
+            The Chain Rule: Why Autograd Actually Works
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              You can't compute a node's gradient until you know the gradient of{" "}
-              <strong>all nodes that use it</strong>. In{" "}
-              <code>y = a*b + c</code>, you must compute the add node's gradient
-              before the mul node's, because mul feeds into add.
+              You <em>could</em> compute gradients by hand for{" "}
+              <code>y = a*b + c</code>. But a real neural network has millions
+              of parameters and hundreds of operations chained together.
+              Computing gradients manually would be absolute madness.
             </p>
             <p>
-              Topological sort gives you a valid ordering — every node comes
-              after all its dependents. For the forward pass: inputs first,
-              output last. For the backward pass: reverse that order — output
-              first, inputs last.
-            </p>
-            <p>
-              In our implementation, this is a standard BFS algorithm (Kahn's
-              algorithm). It looks at which nodes have no remaining dependencies
-              and processes them first. Simple, but critical — without it,
-              you'd compute gradients in the wrong order and get wrong answers.
+              The chain rule saves us. If <code>y = f(g(x))</code>, then{" "}
+              <code>dy/dx = dy/dg × dg/dx</code>. Each operation only needs to
+              know its <em>own</em> local gradient. Autograd chains them all
+              together by multiplying local gradients along the path from output
+              back to input.
             </p>
           </div>
         </div>
 
-        <CodeBlock
-          lang="rust"
-          code={`// Topological sort: process nodes with no remaining parents first
-fn topological_sort(nodes: &[Value]) -> Vec<Value> {
-    let mut visited = HashSet::new();
-    let mut order = Vec::new();
-
-    fn visit(node: &Value, visited: &mut HashSet<Id>, order: &mut Vec<Value>) {
-        if visited.contains(&node.id()) { return; }
-        visited.insert(node.id());
-        for parent in node.parents() {
-            visit(parent, visited, order);
-        }
-        order.push(node.clone()); // parents always come before children
-    }
-
-    for node in nodes { visit(node, &mut visited, &mut order); }
-    order // forward order: inputs → output
-          // backward: just reverse this
-}`}
-        />
-
-        {/* ============================================================ */}
-        {/* SECTION: What Problem Does Autograd Solve? */}
-        {/* ============================================================ */}
-        <motion.div
-          className="bg-[var(--color-surface-raised)] border border-[var(--color-surface-overlay)] rounded-xl p-6 transition-colors duration-200"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-        >
-          <h2 className="text-lg font-semibold mb-3">What Problem Does Autograd Solve?</h2>
-          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed">
-            <p>
-              You <em>could</em> compute gradients by hand for{" "}
-              <code>y = a*b + c</code>. But a real neural network has millions
-              of parameters and hundreds of operations chained together. Writing
-              the gradient formulas by hand would be insane — and you'd have to
-              redo it every time you changed the architecture.
-            </p>
-            <p>
-              Autograd does it automatically. You write the forward computation
-              (the neural network), and it records every operation in a graph.
-              Then it walks backward through that graph, applying the chain rule
-              at each step. Same algorithm as above, just scaled up.
-            </p>
-            <p>
-              The trick is the <strong>chain rule</strong>: if{" "}
-              <code>y = f(g(x))</code>, then{" "}
-              <code>dy/dx = dy/dg * dg/dx</code>. Each operation only needs to
-              know its own local gradient. Autograd chains them all together.
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Forward / Backward cards */}
         <div className="grid gap-4 md:grid-cols-2">
           <InfoCard title="Forward Pass" accent="blue">
             <p>
               Run your computation normally, but secretly record every operation
-              in a directed acyclic graph (DAG). Each node stores its value and
-              how it was computed — like a receipt of every calculation. This is
-              what <code>loss.backward()</code> in PyTorch replays.
+              in a graph. Each node stores its value and how it was computed —
+              like a receipt tape. PyTorch's <code>loss.backward()</code> is
+              literally "replay this receipt tape in reverse."
             </p>
           </InfoCard>
           <InfoCard title="Backward Pass" accent="rose">
             <p>
-              Walk the graph in reverse (topological sort). At each node, apply
-              the chain rule: multiply the incoming gradient by the local gradient
-              of the operation. The incoming gradient is "how much does the final
-              output care about this node's value?" The local gradient is "how
-              does this operation transform small changes?"
+              Walk the graph in reverse order. At each node, multiply the
+              incoming gradient ("how much does the output care about me?") by
+              the local gradient ("how does this operation transform small
+              changes?"). Pass the result to the inputs.
             </p>
           </InfoCard>
         </div>
 
         {/* ============================================================ */}
-        {/* SECTION: The Value Type */}
+        {/* SECTION: Operation Gradients Table */}
         {/* ============================================================ */}
         <div className="space-y-3">
-          <h2 className="text-2xl font-semibold">The Value Type</h2>
+          <h2 className="text-2xl font-semibold">The Gradient Cheat Sheet</h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              Each node in the graph is a <code>Value</code> — a
-              reference-counted pointer to mutable data. Why the indirection?
-              Because a value can be used in multiple operations (shared
-              ownership via <code>Rc</code>), and the backward pass needs to
-              write gradients after the graph is built (interior mutability via{" "}
-              <code>RefCell</code>).
-            </p>
-          </div>
-          <CodeBlock
-            lang="rust"
-            code={`pub struct Value(Rc<RefCell<ValueData>>);
-
-struct ValueData {
-    data: f64,           // the computed value
-    grad: f64,           // gradient (filled during backward)
-    op: Op,              // how this value was created
-    label: String,       // for debugging
-}
-
-enum Op {
-    None,                // leaf node (input/weight)
-    Add(Value, Value),   // result of addition
-    Mul(Value, Value),   // result of multiplication
-    Tanh(Value),         // result of tanh activation
-}`}
-          />
-        </div>
-
-        {/* ============================================================ */}
-        {/* SECTION: Operation Gradients */}
-        {/* ============================================================ */}
-        <div className="space-y-3">
-          <h2 className="text-2xl font-semibold">Operation Gradients</h2>
-          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
-            <p>
-              Each operation knows its own local gradient — the derivative of
-              its output with respect to each input. The chain rule multiplies
-              this by the incoming gradient (labeled <code>grad</code> below).
-            </p>
-            <p>
-              For example: if <code>c = a * b</code>, then{" "}
-              <code>dc/da = b</code>. The chain rule says{" "}
-              <code>a.grad += b * incoming_grad</code>. The <code>+=</code> is
-              critical — if <code>a</code> feeds into multiple operations, its
-              gradient is the <em>sum</em> of all contributions.
+              Each operation has a simple rule for its local gradient. You don't
+              need to memorize these — but it helps to see that they're all
+              embarrassingly simple:
             </p>
           </div>
           <div className="overflow-hidden rounded-lg border border-[var(--color-surface-overlay)]">
@@ -328,18 +227,10 @@ enum Op {
               <tbody>
                 {opsTable.map((row) => (
                   <tr key={row.op} className="border-t border-[var(--color-surface-overlay)]">
-                    <td className="px-4 py-2 font-mono text-xs text-[var(--color-accent-amber)]">
-                      {row.op}
-                    </td>
-                    <td className="px-4 py-2 font-mono text-xs text-[var(--color-text-primary)]">
-                      {row.forward}
-                    </td>
-                    <td className="px-4 py-2 font-mono text-xs text-[var(--color-accent-rose)]">
-                      {row.backward_a}
-                    </td>
-                    <td className="px-4 py-2 font-mono text-xs text-[var(--color-accent-rose)]">
-                      {row.backward_b}
-                    </td>
+                    <td className="px-4 py-2 font-mono text-xs text-[var(--color-accent-amber)]">{row.op}</td>
+                    <td className="px-4 py-2 font-mono text-xs text-[var(--color-text-primary)]">{row.forward}</td>
+                    <td className="px-4 py-2 font-mono text-xs text-[var(--color-accent-rose)]">{row.backward_a}</td>
+                    <td className="px-4 py-2 font-mono text-xs text-[var(--color-accent-rose)]">{row.backward_b}</td>
                   </tr>
                 ))}
               </tbody>
@@ -347,42 +238,32 @@ enum Op {
           </div>
           <div className="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl space-y-2">
             <p>
-              <strong>Why tanh?</strong> The derivative of tanh(x) is{" "}
-              <code>1 - tanh(x)²</code>. Since we already computed
-              tanh(x) in the forward pass (that's the node's value), we don't
-              need x — we just use <code>1 - value²</code>. This is a common
-              pattern: operations cache whatever they need for backward.
-            </p>
-            <p>
-              <strong>Why matmul is special:</strong> For{" "}
-              <code>C = A @ B</code>, the gradients are{" "}
-              <code>dA = grad @ B^T</code> and{" "}
-              <code>dB = A^T @ grad</code>. Notice: computing the gradient
-              requires transposing the other operand. This is why we built
-              zero-copy transpose in Phase 1 — autograd depends on it.
+              <strong>The += matters:</strong> if a value feeds into multiple
+              operations, its gradient is the <em>sum</em> of all contributions.
+              Using <code>=</code> instead of <code>+=</code> would silently
+              lose gradient contributions. This bug is both easy to make and
+              incredibly hard to find.
             </p>
           </div>
         </div>
 
         {/* ============================================================ */}
-        {/* SECTION: The Neuron — Interactive Computation Graph */}
+        {/* SECTION: Neuron */}
         {/* ============================================================ */}
         <div className="space-y-3">
           <h2 className="text-2xl font-semibold">
-            The Neuron: Interactive Computation Graph
+            A Real Neuron (It's Just a Bigger Graph)
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              Now let's scale up from <code>y = a*b + c</code> to a real neuron:{" "}
-              <code>out = tanh(x1*w1 + x2*w2 + b)</code>. This is the
-              fundamental building block of neural networks — two inputs (x1, x2),
-              two weights (w1, w2), a bias (b), and a nonlinear activation (tanh).
+              Now let's scale up from <code>y = a*b + c</code> to an actual
+              neuron: <code>out = tanh(x1*w1 + x2*w2 + b)</code>. Two inputs,
+              two weights, a bias, and a tanh activation. This is the
+              fundamental building block of every neural network ever built.
             </p>
             <p>
-              The computation graph has 10 nodes and follows the exact same
-              pattern: forward computes values left-to-right, backward propagates
-              gradients right-to-left. The explanation panel below the 3D graph
-              shows the math at each step.
+              The graph has 10 nodes but follows the exact same pattern. Drag to
+              rotate in 3D:
             </p>
           </div>
           <ComputationGraph3D
@@ -390,94 +271,55 @@ enum Op {
             edges={neuronGraph.edges}
             title="3D Computation Graph — Single Neuron"
           />
-
-          {/* Step-by-step reference for the neuron graph */}
-          <div className="bg-[var(--color-surface-raised)] border border-[var(--color-surface-overlay)] rounded-lg p-4 space-y-3">
-            <h4 className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
-              Step-by-Step Reference
-            </h4>
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-[var(--color-accent-blue)]">Forward Pass</p>
-                <ul className="text-xs text-[var(--color-text-secondary)] space-y-0.5 font-mono">
-                  <li>x1*w1 = 2 * (-3) = -6.00</li>
-                  <li>x2*w2 = 0 * 1 = 0.00</li>
-                  <li>sum = -6 + 0 = -6.00</li>
-                  <li>sum+b = -6 + 6.88 = 0.88</li>
-                  <li>out = tanh(0.88) = 0.71</li>
-                </ul>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-[var(--color-accent-rose)]">Backward Pass</p>
-                <ul className="text-xs text-[var(--color-text-secondary)] space-y-0.5 font-mono">
-                  <li>d(out) = 1.0 (seed)</li>
-                  <li>d(sum+b) = (1-0.71²)*1 = 0.50</li>
-                  <li>d(sum), d(b) = 0.50, 0.50</li>
-                  <li>d(x1w1), d(x2w2) = 0.50, 0.50</li>
-                  <li>x1.grad = w1*0.5 = -1.50</li>
-                  <li>w1.grad = x1*0.5 = 1.00</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
           <p className="text-xs text-[var(--color-text-muted)] italic">
-            Blue = inputs/weights. Orange = operations. Green = output. Drag to rotate in 3D.
+            Blue = inputs/weights. Orange = operations. Green = output.
           </p>
         </div>
+
+        <TryThis
+          commands={[
+            'autograd_neuron([2, 0], [-3, 1], 6.88)',
+          ]}
+          label="Run this neuron and see all gradients"
+        />
 
         {/* ============================================================ */}
         {/* SECTION: Gradient Accumulation */}
         {/* ============================================================ */}
         <div className="space-y-3">
           <h2 className="text-2xl font-semibold">
-            Gradient Accumulation: The += Rule
+            The += Bug That Will Haunt Your Dreams
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
               What happens when a value feeds into <em>multiple</em> operations?
-              This is common — think of a weight used in multiple layers, or a
-              value used twice in the same expression.
+              Example: <code>d = a*b + a</code> where a=2, b=3.
             </p>
             <p>
-              The rule: <strong>gradients accumulate</strong>. If a value feeds
-              into 3 operations, it gets 3 gradient contributions, and we add
-              them all up. Why? Because the total effect of nudging{" "}
-              <code>a</code> is the sum of its effects through ALL paths to
-              the output.
+              The variable <code>a</code> contributes to the output through two
+              paths. The gradient must be the <em>sum</em> of both
+              contributions. If you use <code>=</code> instead of{" "}
+              <code>+=</code>, you'll overwrite the first path's gradient with
+              the second. Your model will train, but slowly and badly, and
+              you'll spend three days wondering why before finding the bug at
+              2am. Ask me how I know.
             </p>
           </div>
         </div>
 
-        <InfoCard title="Worked Example: a Used Twice" accent="amber">
+        <InfoCard title="Worked example: gradient accumulation" accent="amber">
           <div className="space-y-2">
             <p>
-              Consider <code>d = a*b + a</code> where a=2, b=3:
+              <code>d = a*b + a</code> where a=2, b=3:
             </p>
             <ul className="list-disc list-inside space-y-1">
-              <li>
-                c = a*b = 6, then d = c + a = 8
-              </li>
-              <li>
-                <strong>Path 1:</strong> a → c (via mul) → d (via add). Gradient
-                contribution: b * 1 = 3
-              </li>
-              <li>
-                <strong>Path 2:</strong> a → d (directly, via add). Gradient
-                contribution: 1 * 1 = 1
-              </li>
-              <li>
-                <strong>Total:</strong> a.grad = 3 + 1 = 4
-              </li>
+              <li>Path 1: a → mul → add. Contribution: b × 1 = 3</li>
+              <li>Path 2: a → add directly. Contribution: 1 × 1 = 1</li>
+              <li><strong>Total: a.grad = 3 + 1 = 4</strong></li>
             </ul>
             <p>
-              Verify: if a = 2.001, then c = 2.001*3 = 6.003, d = 6.003 + 2.001 = 8.004.
-              Change in d = 0.004 for a change of 0.001 in a → gradient = 4. Correct!
-            </p>
-            <p className="mt-1">
-              This is why autograd uses <code>+=</code> (accumulate), not{" "}
-              <code>=</code> (overwrite). Overwriting would lose the
-              contribution from one of the paths.
+              Verify: if a = 2.001, then d = 2.001×3 + 2.001 = 8.004. Change =
+              0.004 for a nudge of 0.001 → gradient = 4. Math checks out.
             </p>
           </div>
         </InfoCard>
@@ -493,125 +335,166 @@ enum Op {
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            From Scalars to Tensors
+            From Numbers to Matrices (It's the Same Idea)
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              Everything we just learned about scalar autograd scales to
-              tensors. The chain rule is the same, but now gradients are
-              matrices, not numbers. Element-wise ops (add, mul) are
-              straightforward — the same rule applies to every element.
-            </p>
-            <p>
-              The hard one is <strong>matmul</strong>. If C = A @ B, then:
+              Everything above used single numbers. Real neural networks use
+              tensors (matrices). The good news: the chain rule is identical.
+              The only tricky part is <strong>matmul gradients</strong>:
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
               <li>
-                <code>dA = grad @ B^T</code> — to get A's gradient, multiply the
-                incoming gradient by B transposed
+                If <code>C = A @ B</code>, then <code>dA = grad @ B^T</code>
               </li>
               <li>
-                <code>dB = A^T @ grad</code> — to get B's gradient, multiply A
-                transposed by the incoming gradient
+                And <code>dB = A^T @ grad</code>
               </li>
             </ul>
+            <p>
+              Notice that computing gradients <em>requires transpose</em>.
+              Remember how we made transpose zero-copy in the tensors chapter?
+              That wasn't just a fun fact — autograd calls transpose on{" "}
+              <strong>every single backward pass through a matmul</strong>. If
+              transpose copied data, training would be 2x slower.
+            </p>
           </div>
         </div>
 
-        <InfoCard title="Concrete 2×2 Matmul Gradient Example" accent="emerald">
+        <InfoCard title="Concrete 2×2 matmul gradient" accent="emerald">
           <div className="space-y-3 font-mono text-xs">
             <div>
               <span className="text-[var(--color-text-muted)]">{"// Forward: C = A @ B"}</span>
               <br />
               A = [[1,2],[3,4]] &nbsp; B = [[5,6],[7,8]]
               <br />
-              C = [[1*5+2*7, 1*6+2*8], [3*5+4*7, 3*6+4*8]] = [[19,22],[43,50]]
+              C = [[19,22],[43,50]]
             </div>
             <div>
-              <span className="text-[var(--color-text-muted)]">{"// Backward: assume grad = [[1,0],[0,1]] (identity)"}</span>
+              <span className="text-[var(--color-text-muted)]">{"// Backward: assume grad = identity"}</span>
               <br />
-              <span className="text-[var(--color-accent-rose)]">dA</span> = grad @ B^T = [[1,0],[0,1]] @ [[5,7],[6,8]] = [[5,7],[6,8]]
+              <span className="text-[var(--color-accent-rose)]">dA</span> = grad @ B^T = [[5,7],[6,8]]
               <br />
-              <span className="text-[var(--color-accent-rose)]">dB</span> = A^T @ grad = [[1,3],[2,4]] @ [[1,0],[0,1]] = [[1,3],[2,4]]
+              <span className="text-[var(--color-accent-rose)]">dB</span> = A^T @ grad = [[1,3],[2,4]]
             </div>
-            <p className="text-[var(--color-text-secondary)] font-sans text-sm">
-              Notice: computing dA requires <strong>transposing B</strong>, and dB
-              requires <strong>transposing A</strong>. This is why zero-copy
-              transpose from Phase 1 matters — autograd calls transpose on every
-              backward pass through a matmul. If transpose copied data, training
-              would be 2x slower.
-            </p>
           </div>
         </InfoCard>
 
-        {/* ============================================================ */}
-        {/* SECTION: Why Rc<RefCell>? */}
-        {/* ============================================================ */}
-        <InfoCard title="Why Rc<RefCell>?" accent="amber">
+        <InfoCard title="At scale: why Rc<RefCell> isn't enough" accent="amber">
           <div className="space-y-2">
             <p>
-              A computation graph has <strong>shared ownership</strong> (the same
-              value feeds into multiple operations) and needs{" "}
-              <strong>interior mutability</strong> (the backward pass writes
-              gradients after the graph is built).{" "}
-              <code>Rc&lt;RefCell&gt;</code> solves both:
+              Our autograd uses <code>Rc&lt;RefCell&gt;</code> — shared
+              ownership with runtime borrow checking. It works great for
+              learning, but it's single-threaded only.
             </p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>
-                <code>Rc</code> = reference counting. Multiple nodes can point
-                to the same value without ownership conflicts.
-              </li>
-              <li>
-                <code>RefCell</code> = runtime borrow checking. We can mutate
-                the gradient field even though the graph structure is immutable.
-              </li>
-            </ul>
             <p>
-              The tradeoff: <code>Rc&lt;RefCell&gt;</code> is single-threaded
-              only. It's not <code>Send</code>, so our MCP server can't store
-              autograd graphs across async boundaries. Real frameworks use{" "}
-              <code>Arc&lt;Mutex&gt;</code> for concurrent graphs, or avoid
-              shared pointers entirely by using arena allocators with integer
-              indices. That's a real engineering constraint we'd need to solve at
-              scale.
+              Real frameworks use <code>Arc&lt;Mutex&gt;</code> (thread-safe but
+              slower) or arena allocators with integer indices (fast but more
+              complex). This is a real engineering tradeoff you'd face if you
+              were shipping this to production. We're not, so{" "}
+              <code>Rc&lt;RefCell&gt;</code> is perfect.
             </p>
           </div>
         </InfoCard>
 
         {/* ============================================================ */}
-        {/* Key Takeaways */}
+        {/* MINI PROJECT */}
+        {/* ============================================================ */}
+        <div className="bg-[var(--color-accent-emerald)]/10 border border-[var(--color-accent-emerald)]/30 rounded-xl p-5 space-y-4">
+          <h2 className="text-xl font-bold text-[var(--color-accent-emerald)]">
+            Mini Project: Build Your Own Gradient Calculator
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+            <p>
+              You're going to build a computation graph by hand, run forward and
+              backward, and verify the gradients make sense. This is exactly
+              what PyTorch does under the hood when you call{" "}
+              <code>loss.backward()</code> — except PyTorch does it for millions
+              of parameters.
+            </p>
+            <ol className="list-decimal list-inside space-y-2 ml-2">
+              <li>
+                Create the expression <code>y = (a * b) + c</code> with a=2,
+                b=-3, c=10, and check the gradients
+              </li>
+              <li>
+                Now try <code>y = tanh(a * b + c)</code> — add a tanh at the
+                end and see how the gradients change
+              </li>
+              <li>
+                Run a full neuron with inputs [2, 0], weights [-3, 1], bias 6.88
+                and inspect what the backward pass gives you
+              </li>
+              <li>
+                Bonus: change the weights and see how the gradients shift. Which
+                weight has the biggest gradient? That's the one the model would
+                update the most during training.
+              </li>
+            </ol>
+          </div>
+          <TryThis
+            commands={[
+              'autograd_expr([["a", 2], ["b", -3], ["c", 10]], [["d", "mul", "a", "b"], ["e", "add", "d", "c"]], "e")',
+              'autograd_expr([["a", 2], ["b", -3], ["c", 10]], [["d", "mul", "a", "b"], ["e", "add", "d", "c"], ["f", "tanh", "e"]], "f")',
+              'autograd_neuron([2, 0], [-3, 1], 6.88)',
+            ]}
+            label="Start the mini project"
+          />
+        </div>
+
+        {/* ============================================================ */}
+        {/* WHAT YOU LEARNED */}
         {/* ============================================================ */}
         <div className="bg-[var(--color-accent-blue)]/10 border border-[var(--color-accent-blue)]/30 rounded-xl p-5 space-y-3">
           <h3 className="text-sm font-semibold text-[var(--color-accent-blue)]">
-            Key Takeaways
+            What You Just Learned
           </h3>
           <ul className="text-sm text-[var(--color-text-secondary)] space-y-2 list-disc list-inside">
             <li>
-              A <strong>gradient</strong> tells you how much the output changes
-              when you nudge an input. It's just a slope.
+              A <strong>gradient</strong> is just a slope — how much the output
+              changes when you nudge an input.
             </li>
             <li>
               <strong>Computation graphs</strong> break expressions into simple
-              ops. Forward = compute values. Backward = propagate gradients.
+              ops. Forward computes values, backward propagates gradients.
             </li>
             <li>
-              <strong>Topological sort</strong> ensures we process nodes in the
-              right order — you can't compute a gradient before all downstream
-              gradients are known.
+              The <strong>chain rule</strong> lets each operation only care about
+              its own local gradient. Autograd chains them together.
             </li>
             <li>
-              <strong>Gradient accumulation</strong> (+=) is necessary because a
-              value can contribute to the output through multiple paths.
+              <strong>Gradient accumulation (+=)</strong> is critical when a
+              value feeds into multiple operations. Using = instead of += is
+              a silent, devastating bug.
             </li>
             <li>
-              <strong>Matmul gradients</strong> require transpose:{" "}
-              <code>dA = grad @ B^T</code>, <code>dB = A^T @ grad</code>. This
-              is why we built zero-copy transpose.
+              <strong>Matmul gradients require transpose</strong> — which is
+              why we made transpose zero-copy in the previous chapter.
+            </li>
+            <li>
+              You just built a gradient calculator. That's literally what{" "}
+              <code>loss.backward()</code> does.
             </li>
           </ul>
         </div>
 
-        <ChapterNav current={5} />
+        {/* ============================================================ */}
+        {/* NEXT UP + NAV */}
+        {/* ============================================================ */}
+        <div className="bg-[var(--color-surface-raised)] border border-[var(--color-surface-overlay)] rounded-xl p-5 space-y-2">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+            Coming up next...
+          </h3>
+          <p className="text-sm text-[var(--color-text-secondary)]">
+            You can compute gradients for a single neuron. But a real neural
+            network has thousands of neurons organized into <em>layers</em>.
+            Next up: stacking neurons into networks, running data through
+            multiple layers, and watching gradients flow backward through an
+            entire MLP.
+          </p>
+        </div>
+
+        <LearnNav current={3} />
       </div>
     </PageTransition>
   );

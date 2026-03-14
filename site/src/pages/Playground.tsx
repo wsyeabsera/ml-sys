@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/layout/PageTransition";
 import Toolbar from "../components/playground/Toolbar";
@@ -11,6 +12,31 @@ export default function Playground() {
   const [settings] = useState(loadSettings);
   const { history, running, status, execute, navigateHistory, resetMcp, commandHistory } = useRepl();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const hasLoadedParams = useRef(false);
+
+  // Load commands from URL query params (from TryThis buttons)
+  useEffect(() => {
+    if (hasLoadedParams.current) return;
+    const encoded = searchParams.get("commands");
+    if (encoded && status === "connected") {
+      hasLoadedParams.current = true;
+      try {
+        const commands: string[] = JSON.parse(atob(encoded));
+        // Clear existing history first, then run commands sequentially
+        execute("clear");
+        (async () => {
+          for (const cmd of commands) {
+            await execute(cmd);
+          }
+        })();
+        // Clean up the URL
+        setSearchParams({}, { replace: true });
+      } catch {
+        // Invalid params, ignore
+      }
+    }
+  }, [searchParams, status, execute, setSearchParams]);
 
   useEffect(() => {
     if (settings.autoScroll && scrollRef.current) {

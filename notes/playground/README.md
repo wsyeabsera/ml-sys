@@ -1,26 +1,23 @@
 # Playground Notes
 
-A REPL-style playground in the React site, connected to the rs-tensor MCP.
+Interactive tools for experimenting with ML concepts in the browser, connected to the rs-tensor MCP.
 
-Write JS expressions or call MCP tools directly. Results render inline as text, tensor grids, or autograd graphs. Like a terminal, but with viz.
+## Current state
+
+- **REPL** (`/playground`) — working. Terminal-style, JS eval + MCP tools, inline tensor/autograd viz, toolbar, settings, IndexedDB persistence.
+- **Chapter rework** — planned. Restructure from 10 static chapters to 8 interactive ones with "Try this" buttons linking to REPL, mini projects, and personality.
 
 ## Key decisions
 
-- **REPL, not notebook.** Append-only, no stale state, no cell management.
-- **Web Worker for JS eval.** Isolated, instant, no server round-trip. Persistent scope across executions.
-- **Stateless bridge.** Node process that only proxies MCP calls over stdio. No eval, no state.
-- **Structured MCP output (Phase 0).** Modify Rust tools to return JSON so the playground can render viz without regex parsing.
-- **IndexedDB for persistence.** Save commands only, not outputs. Re-run to regenerate.
-- **TS and MCP are separate worlds.** For now. Future idea: MCP tools as async functions in the worker.
-- **Socket.io** for browser-bridge communication. Auto-reconnection, ack callbacks.
-- **Shift+Enter to execute.** Enter adds newlines. No ambiguity.
-- **No React component tests.** Use chrome-devtools MCP for visual/UI verification instead.
-- **Test the invisible parts.** Bridge, worker, protocol, parsers — properly tested with Vitest.
-- **Observability MCP.** Exposes bridge logs, status, message history so Claude can debug the playground.
+- **REPL is separate from docs.** Chapters link *to* the REPL via "Try this" buttons. The REPL has no doc content in it.
+- **No IDE.** We considered a multi-file workspace and killed it — Cursor already does that better. The REPL is the unique thing.
+- **Chapters become "LEARN" arc.** 8 chapters (down from 10), each ending with a mini project using the REPL.
+- **Ch3 (Phase Recap) removed. Ch4 (MCP Server) moved to Misc.** Not learning content.
 
 ## Documents
 
-- **[architecture.md](./architecture.md)** — Three-layer design (UI → Execution Engine → MCP Proxy), Web Worker eval, stateless bridge, connection handling, file structure.
-- **[build-plan.md](./build-plan.md)** — Phase 0 (structured MCP output) through Phase 4 (polish), what's hard vs easy, dependencies.
-- **[ui-and-viz.md](./ui-and-viz.md)** — REPL interaction model, auto-detection, output rendering, tensor/graph viz, CodeMirror setup, keyboard shortcuts, IndexedDB persistence.
-- **[testing-and-observability.md](./testing-and-observability.md)** — Test strategy (bridge, worker, parsers), observability MCP design (logs, status, message history), skills for debugging.
+- **[architecture.md](./architecture.md)** — REPL design: three layers, Web Worker, stateless bridge.
+- **[build-plan.md](./build-plan.md)** — Phases 0-4 (all complete): structured MCP output, bridge, REPL, viz, persistence.
+- **[ui-and-viz.md](./ui-and-viz.md)** — REPL interaction model, output rendering, keyboard shortcuts.
+- **[testing-and-observability.md](./testing-and-observability.md)** — Test strategy, observability MCP design.
+- **[chapter-rework.md](./chapter-rework.md)** — Chapter restructure: new arc, TryThis component, mini projects, tone guide.

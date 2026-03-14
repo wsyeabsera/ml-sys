@@ -2,7 +2,7 @@ import PageTransition from "../components/layout/PageTransition";
 import { motion } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
-import ChapterNav from "../components/ui/ChapterNav";
+import TryThis from "../components/ui/TryThis";
 import TensorCubes from "../components/three/TensorCubes";
 import ShapeExplorer from "../components/viz/ShapeExplorer";
 import StrideCalculator from "../components/viz/StrideCalculator";
@@ -10,6 +10,7 @@ import StrideDiagram from "../components/three/StrideDiagram";
 import MemoryLayoutViz from "../components/viz/MemoryLayoutViz";
 import TransposeViz from "../components/viz/TransposeViz";
 import StrideComputationViz from "../components/viz/StrideComputationViz";
+import LearnNav from "../components/ui/LearnNav";
 
 export default function Chapter2() {
   return (
@@ -18,14 +19,14 @@ export default function Chapter2() {
         {/* Header */}
         <div className="space-y-4">
           <p className="text-sm font-mono text-[var(--color-accent-blue)]">
-            Chapter 02
+            Learn 02
           </p>
           <motion.h1
             className="text-4xl font-bold tracking-tight"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            What is a Tensor?
+            Tensors — Spreadsheets That Got Too Ambitious
           </motion.h1>
           <motion.p
             className="text-lg text-[var(--color-text-secondary)] max-w-2xl"
@@ -33,110 +34,136 @@ export default function Chapter2() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            A tensor is just a flat array of numbers plus a shape that tells you
-            how to interpret them. That's it. Everything else — strides,
-            transpose, reshape — is metadata tricks on top of flat memory.
+            Every AI model, every neural network, every "intelligent" thing a
+            computer does — it all starts with a flat array of numbers and a
+            sticky note that says "pretend this is 2D."
           </motion.p>
         </div>
 
-        {/* Analogy */}
-        <InfoCard title="Think of it like..." accent="emerald">
-          <p>
-            Imagine a long strip of numbered boxes laid out on a table. That's
-            your data — just numbers sitting in a line in memory. Now imagine
-            someone hands you a cookie cutter — "cut this into 2 rows of 3."
-            The boxes don't move, you just <em>look at them differently</em>. A
-            different cookie cutter — "3 rows of 2" — same boxes, different
-            grid. That's what shape does to data.
-          </p>
-          <p className="mt-2">
-            This isn't just an analogy — it's literally how PyTorch, NumPy, and
-            our Rust library work. The data is always flat. Shape is always
-            interpretation.
-          </p>
+        {/* ============================================================ */}
+        {/* HOOK */}
+        {/* ============================================================ */}
+        <InfoCard title="Here's the dirty secret of AI" accent="emerald">
+          <div className="space-y-2">
+            <p>
+              A tensor is not some magical mathematical object. It's literally
+              just a list of numbers. <code>[1, 2, 3, 4, 5, 6]</code>. That's it.
+              The entire multi-billion-dollar AI industry is built on flat arrays
+              with delusions of grandeur.
+            </p>
+            <p>
+              The "magic" is a tiny piece of metadata called <strong>shape</strong>{" "}
+              that says "hey, pretend this flat list is actually a 2x3 grid."
+              The numbers don't move. Nothing gets rearranged. You just... squint
+              differently.
+            </p>
+            <p>
+              If that sounds too simple to be true — good. Let's prove it.
+            </p>
+          </div>
         </InfoCard>
 
+        <TryThis
+          commands={[
+            'tensor_create("first", [1, 2, 3, 4, 5, 6], [6])',
+            'tensor_create("matrix", [1, 2, 3, 4, 5, 6], [2, 3])',
+            'tensor_create("also_matrix", [1, 2, 3, 4, 5, 6], [3, 2])',
+          ]}
+          label="Create the same data with 3 different shapes"
+        />
+
         {/* ============================================================ */}
-        {/* SECTION: What's Row-Major Order? */}
+        {/* SECTION: Shape Changes Everything */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            What's Row-Major Order?
+            Same Data, Totally Different Vibes
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              Computers don't understand "rows" and "columns." Memory is a flat,
-              one-dimensional sequence of bytes. When you write a 2D array, the
-              language has to decide how to flatten it. There are two conventions:
+              Click through the shapes below. The <em>same six numbers</em> will
+              rearrange themselves into different grids. Drag to rotate in 3D.
+              Notice how the colors stay the same? That's because the data hasn't
+              moved — only your interpretation of it changed.
+            </p>
+            <p>
+              This is the most important idea in this entire project:{" "}
+              <strong>shape is just metadata</strong>. The flat array{" "}
+              <code>[1,2,3,4,5,6]</code> is always the same six numbers sitting
+              in the same six memory addresses. Shape is a lens you hold up to it.
+            </p>
+          </div>
+          <TensorCubes />
+        </div>
+
+        <ShapeExplorer />
+
+        {/* ============================================================ */}
+        {/* SECTION: Memory Layout */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">
+            How Computers Actually Store This Stuff
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+            <p>
+              Your computer's memory is a very long hallway of numbered rooms.
+              Room 0, Room 1, Room 2... all the way to Room
+              Several-Billion. There's no concept of "rows" or "columns" — just
+              a line.
+            </p>
+            <p>
+              So when you say "give me a 2x3 matrix," the computer has to
+              decide: <em>do I put row 0 first, or column 0 first?</em>
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
               <li>
-                <strong>Row-major</strong> (C, Rust, Python/NumPy): store row 0
-                first, then row 1, then row 2...
+                <strong>Row-major</strong> (C, Rust, Python): row 0 first, then
+                row 1. Like reading a book left-to-right, top-to-bottom.
               </li>
               <li>
-                <strong>Column-major</strong> (Fortran, MATLAB, Julia): store
-                column 0 first, then column 1...
+                <strong>Column-major</strong> (Fortran, MATLAB): column 0 first,
+                then column 1. Like reading a newspaper column-by-column.
               </li>
             </ul>
             <p>
-              For the matrix{" "}
-              <code>[[1,2,3],[4,5,6]]</code>, row-major stores{" "}
-              <code>[1,2,3,4,5,6]</code> — the first row followed by the second.
-              Column-major stores <code>[1,4,2,5,3,6]</code> — the first column
-              followed by the second.
-            </p>
-            <p>
-              Same logical data, different physical layout. This choice ripples
-              through everything: which operations are fast, how strides work,
-              and whether your code plays nice with CPU caches. We use row-major
-              because that's what C, Rust, and NumPy use.
+              We use row-major. So does NumPy. So does PyTorch. If you ever wonder
+              "why does this thing work in NumPy but give weird results in MATLAB?"
+              — this is probably why.
             </p>
           </div>
-        </div>
-
-        {/* Memory Layout Viz */}
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold">
-            See It: Row-Major vs Column-Major
-          </h3>
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Toggle between layouts. Watch how the same flat data maps to
-            different grid positions. Notice that in row-major, elements within
-            the same row are neighbors in memory.
-          </p>
           <MemoryLayoutViz />
         </div>
 
         {/* ============================================================ */}
-        {/* SECTION: The Tensor Struct */}
+        {/* SECTION: The Struct */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            The Two Ingredients (Plus a Secret Third)
+            The Three Ingredients
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              Every tensor has exactly two things you set, and one thing that's
-              computed:
+              Every tensor in our Rust library (and in PyTorch, and in NumPy, and
+              in TensorFlow, and in literally every tensor library ever written)
+              has exactly three things:
             </p>
             <ol className="list-decimal list-inside space-y-2 ml-2">
               <li>
-                <strong>data</strong> — a flat <code>Vec&lt;f32&gt;</code> in
-                row-major order. This is the actual memory allocation. Whether
-                your tensor is 1D, 5D, or 100D, the data is always a flat array.
+                <strong>data</strong> — the flat array.{" "}
+                <code>[1, 2, 3, 4, 5, 6]</code>. This is the actual memory.
+                The stuff taking up space on your RAM. The important bit.
               </li>
               <li>
-                <strong>shape</strong> — a <code>Vec&lt;usize&gt;</code> that
-                says how to slice the flat data into dimensions.{" "}
-                <code>[2, 3]</code> means "interpret this as 2 rows of 3
-                columns."
+                <strong>shape</strong> — the sticky note. <code>[2, 3]</code>{" "}
+                means "treat this as 2 rows of 3 columns." The sticky note is
+                free to change — the data doesn't care.
               </li>
               <li>
-                <strong>strides</strong> — computed from shape. Strides tell you
-                how many elements to skip when moving one step along each
-                dimension. This is what makes reshape and transpose cheap (or
-                free).
+                <strong>strides</strong> — the cheat sheet. Tells you "to move
+                one step in dimension X, skip Y numbers in the flat array."
+                Computed automatically from the shape. This is where the real
+                magic lives.
               </li>
             </ol>
           </div>
@@ -147,349 +174,289 @@ export default function Chapter2() {
           code={`pub struct Tensor {
     pub data: Vec<f32>,      // [1, 2, 3, 4, 5, 6]  ← always flat
     pub shape: Vec<usize>,   // [2, 3] → 2 rows, 3 cols
-    pub strides: Vec<usize>, // [3, 1] → computed from shape
+    pub strides: Vec<usize>, // [3, 1] → skip 3 for next row, 1 for next col
 }
 
-// Indexing: element at [i, j] = data[i * strides[0] + j * strides[1]]
-// For shape [2,3]: element [1,2] = data[1*3 + 2*1] = data[5] = 6`}
+// Want element at row 1, col 2?
+// flat_index = 1 * strides[0] + 2 * strides[1]
+//            = 1 * 3 + 2 * 1
+//            = 5
+// data[5] = 6  ← boom, that's your answer`}
         />
 
-        {/* ============================================================ */}
-        {/* SECTION: Shape Changes Everything */}
-        {/* ============================================================ */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">
-            See It: Shape Changes Everything
-          </h2>
-          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
-            <p>
-              Click through the shapes below and watch the same 6 numbers
-              rearrange in 3D. Drag to rotate. Pay attention to the indices
-              shown on each cube:
-            </p>
-            <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>
-                <strong>Shape [6]:</strong> All cubes in a line — this is how
-                the data actually sits in memory. No interpretation, just raw
-                flat data.
-              </li>
-              <li>
-                <strong>Shape [2,3]:</strong> The cubes rearrange into 2 rows of
-                3. But in memory, nothing moved. We just changed how we read the
-                flat array — first 3 elements are row 0, next 3 are row 1.
-              </li>
-              <li>
-                <strong>Shape [3,2]:</strong> Same 6 numbers, now 3 rows of 2.
-                Notice element "4" is at position [1,0] in shape [2,3] but at
-                position [1,1] in shape [3,2] — same data, different
-                coordinates.
-              </li>
-            </ul>
-          </div>
-          <TensorCubes />
-        </div>
-
-        {/* 2D Shape Explorer */}
-        <div className="space-y-3">
-          <h2 className="text-xl font-semibold">
-            Shape Explorer
-          </h2>
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Same idea in 2D. Each colored box is an element — watch them
-            smoothly rearrange as you pick different shapes. The index on each
-            box tells you its coordinate in the tensor. The <em>color</em> never
-            changes — it's tied to the element's flat position, proving the data
-            doesn't move.
-          </p>
-          <ShapeExplorer />
-        </div>
+        <TryThis
+          commands={[
+            'tensor_create("t", [1, 2, 3, 4, 5, 6], [2, 3])',
+            'tensor_inspect("t")',
+            'tensor_get_2d("t", 1, 2)',
+          ]}
+          label="Create a tensor and inspect its strides"
+        />
 
         {/* ============================================================ */}
         {/* SECTION: Strides Deep Dive */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            Strides: The Secret Sauce
+            Strides: How to Navigate a Flat Array Like a Pro
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              Strides answer one question:{" "}
-              <strong>
-                if I move one step along dimension d, how many elements do I
-                skip in the flat array?
-              </strong>
+              Here's the question strides answer: "I'm at some element.
+              I want to move one step in dimension X. How many numbers do I
+              hop over in the flat array?"
             </p>
             <p>
-              For a shape [2,3] tensor, the strides are [3,1]:
+              For a <code>[2, 3]</code> tensor, strides are{" "}
+              <code>[3, 1]</code>:
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
               <li>
-                Moving one step along dim 0 (next row) skips{" "}
-                <strong>3 elements</strong>. Why? Because each row has 3
-                columns, so the next row starts 3 positions later.
+                <strong>Next row?</strong> Skip 3. Because each row is 3
+                elements long, duh.
               </li>
               <li>
-                Moving one step along dim 1 (next column) skips{" "}
-                <strong>1 element</strong>. Adjacent columns are adjacent in
-                memory.
+                <strong>Next column?</strong> Skip 1. Columns are next-door
+                neighbors in memory.
               </li>
             </ul>
+            <p>
+              The formula for any shape:{" "}
+              <code>strides[i] = product of all dimensions after i</code>. The
+              last dimension's stride is always 1 (because that's just "next door").
+            </p>
           </div>
         </div>
 
-        <InfoCard title="Worked example: 3D strides" accent="blue">
-          <p className="mb-2">
-            Shape <code>[2, 3, 4]</code> → strides <code>[12, 4, 1]</code>.
-            Let's trace the logic:
-          </p>
-          <ul className="list-disc list-inside space-y-1">
-            <li>
-              <strong>Dim 2</strong> (innermost): stride = 1. Adjacent elements
-              in the last dimension are adjacent in memory.
-            </li>
-            <li>
-              <strong>Dim 1</strong>: stride = 4. Each step along dim 1 skips
-              one "row" of 4 elements (the size of dim 2).
-            </li>
-            <li>
-              <strong>Dim 0</strong> (outermost): stride = 12. Each step along
-              dim 0 skips one entire "slice" of 3×4 = 12 elements.
-            </li>
-          </ul>
-          <p className="mt-2">
-            The pattern: <code>strides[i] = product of all dimensions after i</code>.
-            The rightmost stride is always 1 (in row-major).
-          </p>
+        <InfoCard title="Pop quiz: what are the strides for shape [2, 3, 4]?" accent="blue">
+          <div className="space-y-2">
+            <p>
+              Work backward from the right:
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><strong>Dim 2</strong> (rightmost): stride = 1. Always.</li>
+              <li><strong>Dim 1</strong>: stride = 4. Skip one "row" of 4 elements.</li>
+              <li><strong>Dim 0</strong>: stride = 3 × 4 = 12. Skip an entire "slice."</li>
+            </ul>
+            <p className="mt-2">
+              Answer: <code>[12, 4, 1]</code>. If you got that right, you
+              understand strides better than most people who use PyTorch daily.
+              Not even joking.
+            </p>
+          </div>
         </InfoCard>
 
-        {/* Stride Computation Animation */}
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold">
-            See It: How Strides Are Computed
-          </h3>
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Pick a shape and click "Animate" to watch the formula{" "}
-            <code>strides[i] = product(shape[i+1:])</code> computed step by
-            step, from the rightmost dimension inward.
-          </p>
-          <StrideComputationViz />
-        </div>
-
-        {/* 3D Stride Diagram */}
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold">
-            See It: Stride Jumps in Memory
-          </h3>
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            Click the dimension buttons to see which elements each stride
-            connects. When you select dim 0 (stride=3), notice the highlighted
-            elements are 3 apart. Dim 1 (stride=1) highlights adjacent elements.
-          </p>
-          <StrideDiagram />
-        </div>
-
-        {/* Stride Calculator */}
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold">
-            Try It: The Indexing Formula
-          </h3>
-          <div className="space-y-2 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
-            <p>
-              The formula{" "}
-              <code>flat_index = sum(indices[i] * strides[i])</code> converts
-              multi-dimensional coordinates to a position in the flat array.
-              This is the only math the CPU needs — no division, no modulo, just
-              multiply-and-add. That's why it's fast.
-            </p>
-            <p>
-              Type in a shape and indices to see the formula evaluated step by
-              step. Try shape <code>2,3,4</code> with indices <code>1,2,3</code>{" "}
-              to see how a 3D lookup works.
-            </p>
-          </div>
-          <StrideCalculator />
-        </div>
+        <StrideComputationViz />
+        <StrideDiagram />
+        <StrideCalculator />
 
         {/* ============================================================ */}
-        {/* SECTION: What Transpose Really Does */}
+        {/* SECTION: Transpose */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            What Transpose Really Does
+            Transpose: The Greatest Trick a Tensor Ever Pulled
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              Here's the punchline most tutorials skip:{" "}
-              <strong>transpose doesn't move any data</strong>. It swaps the
-              strides.
+              Most people think transpose rearranges data. It doesn't.{" "}
+              <strong>Transpose doesn't move a single byte.</strong>
             </p>
             <p>
-              Take a [2,3] tensor with strides [3,1]. Transpose it:
+              Take a <code>[2, 3]</code> tensor with strides{" "}
+              <code>[3, 1]</code>. Transpose it:
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
-              <li>
-                Shape becomes [3,2] (dimensions swap)
-              </li>
-              <li>
-                Strides become [1,3] (strides swap)
-              </li>
-              <li>
-                Data stays <code>[1,2,3,4,5,6]</code> — untouched
-              </li>
+              <li>Shape: [2, 3] → [3, 2] (swap the dimensions)</li>
+              <li>Strides: [3, 1] → [1, 3] (swap the strides)</li>
+              <li>Data: unchanged. Not copied. Not touched. Same memory address.</li>
             </ul>
             <p>
-              This is a <strong>zero-copy operation</strong>. No allocation, no
-              memcpy, just swapping two numbers in the metadata. That's why
-              transpose is O(1) in NumPy and PyTorch.
+              That's it. Two numbers get swapped in the metadata. The data sits
+              there untouched, probably wondering what all the fuss is about.
+              This is a <strong>zero-copy operation</strong> — it takes the same
+              time whether your tensor has 6 numbers or 6 billion.
             </p>
           </div>
         </div>
 
         <TransposeViz />
 
-        <InfoCard title="Non-Contiguous: When Strides Go Wrong" accent="amber">
+        <TryThis
+          commands={[
+            'tensor_create("m", [1, 2, 3, 4, 5, 6], [2, 3])',
+            'tensor_inspect("m")',
+            'tensor_transpose("m", 0, 1, "m_T")',
+            'tensor_inspect("m_T")',
+          ]}
+          label="Transpose a tensor and compare strides"
+        />
+
+        <InfoCard title="The catch: non-contiguous data" accent="amber">
           <div className="space-y-2">
             <p>
-              After transpose, strides are [1,3]. Moving along dim 0 jumps 1
-              element (fine). But moving along dim 1 jumps <strong>3</strong>{" "}
-              elements — you're leaping over data, not reading it
-              sequentially.
+              After transpose, your strides are [1, 3]. Moving along dim 1 now
+              jumps 3 elements — you're zigzagging through memory instead of
+              reading it sequentially. The data is <strong>non-contiguous</strong>.
             </p>
             <p>
-              The data is now <strong>non-contiguous</strong>: the logical order
-              of elements doesn't match their physical order in memory. The
-              flat array hasn't changed, but our path through it has become
-              scattered.
+              This matters because: if you try to <code>reshape()</code> a
+              non-contiguous tensor, the library can't just change the metadata.
+              It has to actually copy the data into a new, contiguous layout. In
+              PyTorch, this is why you sometimes need{" "}
+              <code>.contiguous()</code> before <code>.view()</code>.
             </p>
             <p>
-              <strong>Why does this matter?</strong> If you try to{" "}
-              <code>reshape()</code> a non-contiguous tensor, the library can't
-              just change the shape metadata — the data isn't laid out right.
-              It has to allocate a new buffer and copy elements into contiguous
-              order. That's called <em>materialization</em>, and it's expensive.
-            </p>
-            <p>
-              In PyTorch, this is why you sometimes see{" "}
-              <code>.contiguous()</code> before <code>.view()</code>. In NumPy,
-              it's why <code>.reshape()</code> on a transposed array returns a
-              copy, not a view.
+              It's also why column-wise access on row-major data is slow — you're
+              hitting a different CPU cache line on every single read. More on
+              that in a second.
             </p>
           </div>
         </InfoCard>
 
         {/* ============================================================ */}
-        {/* SECTION: Why Cache Lines Matter */}
+        {/* SECTION: Cache Lines */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
-            Why Cache Lines Matter
+            Why Your CPU Hates Bad Strides
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              CPUs don't load one number at a time from RAM. They load{" "}
-              <strong>cache lines</strong> — 64-byte chunks. Since a{" "}
-              <code>f32</code> is 4 bytes, one cache line holds 16 floats.
+              Your CPU doesn't fetch one number at a time from RAM. That would be
+              agonizingly slow (RAM is far away, like "other side of the city"
+              far in CPU terms). Instead, it grabs a <strong>cache line</strong>{" "}
+              — 64 bytes, which is 16 floats.
             </p>
             <p>
-              When you read <code>data[0]</code>, the CPU actually fetches{" "}
-              <code>data[0]</code> through <code>data[15]</code> into the
-              cache. If you then read <code>data[1]</code>, it's already
-              there — <strong>cache hit</strong>, essentially free.
+              So when you read <code>data[0]</code>, the CPU secretly grabs{" "}
+              <code>data[0]</code> through <code>data[15]</code> and stashes
+              them in a tiny, blazing-fast memory called the cache. If your next
+              read is <code>data[1]</code> — already in cache. Free. Lightning
+              fast. The CPU is basically psychic.
             </p>
             <p>
-              But if you read <code>data[0]</code>, then <code>data[1000]</code>,
-              then <code>data[1]</code>, then <code>data[1001]</code>... each
-              access fetches a new cache line and evicts the old one —{" "}
-              <strong>cache misses</strong> everywhere. This can be 10-100x
-              slower for the same number of reads.
+              But if your next read is <code>data[1000]</code>? That's in a
+              completely different cache line. The CPU fetches a new 64-byte
+              chunk, evicts the old one, and your <code>data[1]</code> is
+              gone. Every. Single. Read. Is. Slow.
             </p>
           </div>
         </div>
 
-        <InfoCard title="The Connection to Strides" accent="rose">
+        <InfoCard title="The punchline" accent="rose">
           <div className="space-y-2">
             <p>
-              This is exactly why row-major order + row-wise access is fast.
-              When you iterate over a [1000, 1000] matrix row by row:
+              Iterating over a <code>[1000, 1000]</code> matrix:
             </p>
             <ul className="list-disc list-inside space-y-1">
               <li>
-                <strong>Row-wise access on row-major data:</strong> stride = 1.
-                Every element is adjacent in memory. The CPU prefetcher loads
-                cache lines ahead of you. Nearly optimal.
+                <strong>Row by row</strong> (stride = 1): each element is right next
+                to the previous one. Cache hit after cache hit. The CPU prefetcher
+                is having the time of its life.
               </li>
               <li>
-                <strong>Column-wise access on row-major data:</strong> stride =
-                1000. Every access jumps 1000 elements (4000 bytes = 62 cache
-                lines). Every single read is a cache miss.
+                <strong>Column by column</strong> (stride = 1000): each element is
+                4000 bytes away. Every single read misses the cache. The CPU
+                prefetcher has given up and is doom-scrolling.
               </li>
             </ul>
             <p className="mt-1">
-              Same data, same algorithm, same number of operations — but the
-              column-wise version can be <strong>10x slower</strong> because of
-              cache misses. This is why memory layout isn't an abstract concept.
-              It's the foundation of fast numerical computing.
-            </p>
-          </div>
-        </InfoCard>
-
-        <InfoCard title="In Practice" accent="emerald">
-          <div className="space-y-2">
-            <p>
-              When you multiply two matrices, the naive triple loop accesses one
-              matrix row-wise and the other column-wise. That column-wise access
-              is the bottleneck — it's why naive matmul is slow on large
-              matrices.
-            </p>
-            <p>
-              Every optimization (loop tiling, transposing B first, BLAS
-              libraries, GPU shared memory) is fundamentally about fixing this
-              access pattern to keep data in cache. Strides and memory layout are
-              the reason all of these techniques exist.
+              Same data. Same number of reads. <strong>10x speed difference.</strong>{" "}
+              This is why memory layout isn't academic trivia — it's the single
+              biggest factor in whether your ML code runs fast or makes you want
+              to throw your laptop out a window.
             </p>
           </div>
         </InfoCard>
 
         {/* ============================================================ */}
-        {/* Key Takeaway */}
+        {/* MINI PROJECT */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <div className="bg-[var(--color-accent-emerald)]/10 border border-[var(--color-accent-emerald)]/30 rounded-xl p-5 space-y-4">
+            <h2 className="text-xl font-bold text-[var(--color-accent-emerald)]">
+              Mini Project: Your First Matrix Multiplication
+            </h2>
+            <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+              <p>
+                Time to get your hands dirty. You're going to create two matrices,
+                multiply them together, and verify the result makes sense. This is
+                the single most important operation in all of machine learning —
+                literally every neural network is just matmuls all the way down.
+              </p>
+              <p>
+                Here's what to do:
+              </p>
+              <ol className="list-decimal list-inside space-y-2 ml-2">
+                <li>Create a 2x3 matrix <code>A</code> with values [1,2,3,4,5,6]</li>
+                <li>Create a 3x2 matrix <code>B</code> with values [7,8,9,10,11,12]</li>
+                <li>Multiply them: A (2x3) × B (3x2) = C (2x2)</li>
+                <li>Inspect the result — you should get [[58, 64], [139, 154]]</li>
+                <li>Now transpose B and try to multiply A × B_T. What happens? (Hint: it should fail — the shapes don't match!)</li>
+              </ol>
+            </div>
+            <TryThis
+              commands={[
+                'tensor_create("A", [1,2,3,4,5,6], [2,3])',
+                'tensor_create("B", [7,8,9,10,11,12], [3,2])',
+                'tensor_matmul("A", "B", "C")',
+                'tensor_inspect("C")',
+              ]}
+              label="Start the mini project"
+            />
+          </div>
+        </div>
+
+        {/* ============================================================ */}
+        {/* WHAT YOU BUILT */}
         {/* ============================================================ */}
         <div className="bg-[var(--color-accent-blue)]/10 border border-[var(--color-accent-blue)]/30 rounded-xl p-5 space-y-3">
           <h3 className="text-sm font-semibold text-[var(--color-accent-blue)]">
-            Key Takeaways
+            What You Just Learned
           </h3>
           <ul className="text-sm text-[var(--color-text-secondary)] space-y-2 list-disc list-inside">
             <li>
-              A tensor is <em>not</em> a multidimensional array. It's a flat
-              chunk of memory plus metadata (shape, strides) that gives it
-              structure.
+              A tensor is a flat array + shape metadata. The data never moves —
+              only your interpretation of it changes.
             </li>
             <li>
-              <strong>Reshape</strong> changes the shape and recomputes strides.
-              Zero-copy — data doesn't move.
+              <strong>Strides</strong> tell you how to navigate the flat array as
+              if it were multidimensional. The formula:{" "}
+              <code>flat_index = sum(indices[i] * strides[i])</code>.
             </li>
             <li>
-              <strong>Transpose</strong> swaps the strides. Also zero-copy —
-              but now the data is non-contiguous.
-            </li>
-            <li>
-              <strong>Non-contiguous data</strong> means logical order doesn't
-              match physical order. Reshaping a non-contiguous tensor forces a
-              copy (materialization).
+              <strong>Transpose</strong> just swaps strides — zero copy, O(1),
+              doesn't touch the data. But it makes the tensor non-contiguous.
             </li>
             <li>
               <strong>Cache lines</strong> make sequential access fast and
-              scattered access slow. Strides determine whether your access
-              pattern is sequential or scattered.
+              scattered access slow. Good strides = fast code.
+            </li>
+            <li>
+              You did a <strong>matrix multiplication</strong> — the most important
+              operation in ML. Every neural network layer is basically this.
             </li>
           </ul>
+        </div>
+
+        {/* ============================================================ */}
+        {/* NEXT UP TEASER + NAV */}
+        {/* ============================================================ */}
+        <div className="bg-[var(--color-surface-raised)] border border-[var(--color-surface-overlay)] rounded-xl p-5 space-y-2">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+            Coming up next...
+          </h3>
           <p className="text-sm text-[var(--color-text-secondary)]">
-            This separation of data from interpretation is the foundation
-            everything else builds on — operations in Chapter 3, the MCP server
-            in Chapter 4, and autograd in Chapter 5 all depend on these ideas.
+            You can create tensors and multiply them. Cool. But how does a
+            neural network <em>learn</em>? It needs to know "if I change this
+            weight by a tiny bit, how much does the error change?" That's what
+            gradients tell you — and autograd computes them automatically. No
+            calculus required (mostly).
           </p>
         </div>
 
-        <ChapterNav current={2} />
+        <LearnNav current={2} />
       </div>
     </PageTransition>
   );
