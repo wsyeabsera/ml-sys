@@ -52,6 +52,13 @@ const chapterPrompts: Record<number, Prompt[]> = {
     { label: "Explain the KV cache", command: "/explain-concept KV cache and why it makes generation fast", description: "Why we cache K and V across steps" },
     { label: "Quiz me on the full pipeline", command: "/quiz-me the complete LLM pipeline", description: "Test your end-to-end understanding" },
   ],
+  9: [
+    { label: "Walk me through training", command: "/walk-through-chapter 9", description: "Step through the training loop with live examples" },
+    { label: "Quiz me on training", command: "/quiz-me training loop SGD loss functions", description: "Do you understand the training pipeline?" },
+    { label: "Explain learning rate", command: "/explain-concept learning rate and why it matters", description: "Deep dive into the most important hyperparameter" },
+    { label: "Experiment with learning rates", command: "/experiment different learning rates on XOR", description: "See what happens with too high, too low, and just right" },
+    { label: "Debug: my loss isn't decreasing", command: "/debug-my-understanding why is my training loss not decreasing", description: "Common training problems and how to fix them" },
+  ],
 };
 
 export default function ClaudePrompts({ chapter }: { chapter: number }) {

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import PageTransition from "../components/layout/PageTransition";
 import InfoCard from "../components/ui/InfoCard";
 import TryThis from "../components/ui/TryThis";
+import PredictExercise from "../components/ui/PredictExercise";
 import LearnNav from "../components/ui/LearnNav";
 import Badge from "../components/ui/Badge";
 import { phases } from "../data/roadmap";
@@ -176,6 +177,13 @@ export default function Chapter1() {
             'tensor_inspect("hello")',
           ]}
           label="Create your first tensor"
+        />
+
+        <PredictExercise
+          question="You just created a tensor with data [1,2,3,4] and shape [2,2]. How many elements does it have? What does [2,2] mean?"
+          hint="Shape [2,2] means the flat array is interpreted as a 2D grid."
+          answer="4 elements. [2,2] means 2 rows and 2 columns — a 2×2 matrix."
+          explanation="The data is always flat — [1,2,3,4] in memory. The shape [2,2] is just metadata that says 'treat this as 2 rows of 2 columns.' The data didn't change, only the interpretation."
         />
 
         <InfoCard title="What just happened?" accent="blue">

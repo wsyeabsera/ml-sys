@@ -241,11 +241,57 @@ function VizRenderer({ output, input }: { output: StoredOutput; input: string })
         </div>
       );
 
+    case "evaluation": {
+      const ev = result.data as {
+        predictions: { data: number[]; shape: number[] };
+        loss?: number;
+        accuracy?: number;
+      };
+      return (
+        <div className="p-4 rounded-xl bg-[var(--color-surface-raised)] border border-[var(--color-surface-overlay)] space-y-4">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="px-2 py-1 rounded bg-[var(--color-accent-amber)]/20 text-[var(--color-accent-amber)] font-mono font-semibold">
+              evaluation
+            </span>
+          </div>
+          {ev.accuracy !== undefined && ev.loss !== undefined && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[var(--color-surface-base)] rounded-lg p-3">
+                <div className="text-xs text-[var(--color-text-muted)]">Accuracy</div>
+                <div className="text-2xl font-mono font-bold text-[var(--color-accent-emerald)]">
+                  {(ev.accuracy * 100).toFixed(0)}%
+                </div>
+              </div>
+              <div className="bg-[var(--color-surface-base)] rounded-lg p-3">
+                <div className="text-xs text-[var(--color-text-muted)]">Loss</div>
+                <div className="text-2xl font-mono font-bold text-[var(--color-text-primary)]">
+                  {ev.loss.toFixed(4)}
+                </div>
+              </div>
+            </div>
+          )}
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-2">Predictions</h3>
+            <div className="flex flex-wrap gap-2">
+              {ev.predictions.data.map((val, i) => (
+                <div key={i} className="px-3 py-2 rounded-lg bg-[var(--color-surface-base)] text-center">
+                  <div className="text-xs text-[var(--color-text-muted)]">Sample {i}</div>
+                  <div className={`text-sm font-mono font-semibold ${val > 0.5 ? "text-[var(--color-accent-emerald)]" : "text-[var(--color-text-muted)]"}`}>
+                    {val.toFixed(3)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     default:
       return (
         <div className="p-4 rounded-xl bg-[var(--color-surface-raised)] border border-[var(--color-surface-overlay)]">
           <p className="text-sm text-[var(--color-text-muted)] mb-3">
-            Rich visualization for this type ({result.type}) is coming soon. Showing formatted data:
+            Showing formatted data:
           </p>
           <pre className="text-xs font-mono text-[var(--color-text-secondary)] whitespace-pre-wrap">
             {JSON.stringify(result.data, null, 2)}

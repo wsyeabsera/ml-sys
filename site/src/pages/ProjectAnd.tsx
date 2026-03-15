@@ -33,18 +33,23 @@ export default function ProjectAnd() {
         </div>
 
         {/* What you'll build */}
-        <InfoCard title="What you're building" accent="emerald">
+        <InfoCard title="What if I told you a computer can learn AND?" accent="emerald">
           <div className="space-y-2">
             <p>
               The AND function: both inputs must be 1 for the output to be 1.
-              Simple truth table, 4 examples. But here's the thing — you're not
-              going to code the logic. You're going to show a neural network the
-              examples and let it <strong>figure out the pattern by itself</strong>.
+              A 5-year-old could learn this in 30 seconds. But we're going to
+              do something ridiculous — we're going to make a neural network
+              figure it out <strong>by showing it 4 examples and hoping for
+              the best</strong>.
             </p>
             <p>
-              By the end, you'll have run the complete training loop: create data →
-              initialize weights → train → evaluate → predict. This is the same
-              loop that trains GPT-4, just on a tiny problem.
+              This is, in a very real sense, what OpenAI does. Just with more
+              examples. And more GPUs. And more money. But the loop is
+              identical: show examples → measure error → adjust weights → pray.
+              Sorry, I mean "iterate."
+            </p>
+            <p>
+              Five commands. From nothing to a trained model. Let's go.
             </p>
           </div>
         </InfoCard>
@@ -222,19 +227,24 @@ export default function ProjectAnd() {
         {/* What you built */}
         <div className="bg-[var(--color-accent-emerald)]/10 border border-[var(--color-accent-emerald)]/30 rounded-xl p-5 space-y-3">
           <h2 className="text-xl font-bold text-[var(--color-accent-emerald)]">
-            What You Just Built
+            Congratulations, You're an ML Engineer Now
           </h2>
           <div className="space-y-2 text-sm text-[var(--color-text-secondary)]">
             <p>
               In 5 commands, you went from nothing to a trained neural network.
               The network learned AND from just 4 examples — no one told it the
               rule, it discovered the pattern by adjusting its weights to minimize
-              the error.
+              the error. You just did what took humanity decades to figure out.
             </p>
             <p>
-              This is the core of machine learning: show examples → compute error →
-              adjust weights → repeat. Everything else — bigger networks, more data,
-              fancier optimizers — is just scaling this up.
+              This is the <em>entire</em> core of machine learning: show examples →
+              compute error → adjust weights → repeat. Everything else — bigger
+              networks, more data, fancier optimizers, billion-dollar GPU clusters —
+              is just this loop, run really fast, on really big matrices.
+            </p>
+            <p>
+              Put "trained a neural network from scratch" on your resume. You
+              literally did.
             </p>
           </div>
         </div>

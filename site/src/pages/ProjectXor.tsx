@@ -33,17 +33,25 @@ export default function ProjectXor() {
         </div>
 
         {/* What XOR is */}
-        <InfoCard title="XOR: the problem that changed everything" accent="emerald">
+        <InfoCard title="The problem that killed AI (temporarily)" accent="emerald">
           <div className="space-y-2">
             <p>
-              XOR (exclusive or): output is 1 when the inputs <em>differ</em>.
-              [0,0]→0, [0,1]→1, [1,0]→1, [1,1]→0. Simple for a human.
-              Impossible for a single neuron.
+              XOR: output is 1 when the inputs <em>differ</em>. [0,0]→0,
+              [0,1]→1, [1,0]→1, [1,1]→0. A toddler could learn this. A single
+              neuron cannot. And in 1969, two MIT professors wrote a book
+              proving it.
             </p>
             <p>
-              This problem famously killed neural network research in the 1960s
-              when Minsky & Papert proved a single perceptron couldn't learn it.
-              The field went dark for over a decade. The fix? Add layers.
+              Minsky & Papert's <em>Perceptrons</em> was so devastating that
+              funding for neural networks dried up for over a decade. The "AI
+              winter." Careers ended. Research labs closed. All because of
+              this four-row truth table.
+            </p>
+            <p>
+              The fix was embarrassingly simple: <strong>add one more
+              layer</strong>. That's what you're about to do — first watch
+              it fail (like it's 1969), then fix it (like it's 1986). You're
+              about to speedrun the history of deep learning.
             </p>
           </div>
         </InfoCard>
@@ -133,24 +141,27 @@ export default function ProjectXor() {
         {/* What you learned */}
         <div className="bg-[var(--color-accent-emerald)]/10 border border-[var(--color-accent-emerald)]/30 rounded-xl p-5 space-y-3">
           <h2 className="text-xl font-bold text-[var(--color-accent-emerald)]">
-            What You Just Learned
+            You Just Ended the AI Winter
           </h2>
           <ul className="text-sm text-[var(--color-text-secondary)] space-y-2 list-disc list-inside">
             <li>
-              <strong>A single neuron can only learn linearly separable functions.</strong>{" "}
-              AND works, XOR doesn't.
+              <strong>A single neuron draws straight lines.</strong> AND is on one
+              side of a line. XOR isn't. No line works. Minsky was right about that.
             </li>
             <li>
-              <strong>Adding a hidden layer creates a new representation</strong>{" "}
-              where the problem becomes solvable. This is the core idea of deep learning.
+              <strong>A hidden layer bends the space.</strong> It transforms the
+              input into a new representation where XOR <em>is</em> linearly
+              separable. Minsky was wrong about that being useless.
             </li>
             <li>
-              <strong>The same training loop works</strong> whether the network has
-              1 layer or 100 layers. More depth = more expressive power.
+              <strong>The same training loop works at any depth.</strong> One layer,
+              100 layers, doesn't matter. Forward → loss → backward → update.
+              The code doesn't change. Only the weights do.
             </li>
             <li>
-              You just reproduced the most famous result in neural network history.
-              Minsky proved it couldn't work; you showed it can — with depth.
+              You just proved that depth matters — the single most important
+              insight in all of deep learning. It took the field 17 years to
+              figure this out. It took you about 3 minutes.
             </li>
           </ul>
         </div>

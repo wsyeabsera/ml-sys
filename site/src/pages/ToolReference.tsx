@@ -108,6 +108,16 @@ const toolGroups = [
           { name: "col", type: "number", desc: "Column index" },
         ],
       },
+      {
+        name: "tensor_get",
+        signature: 'tensor_get(name, indices)',
+        description: "Get a single element by N-dimensional indices.",
+        example: 'tensor_get("a", [1, 2])',
+        args: [
+          { name: "name", type: "string", desc: "Tensor name" },
+          { name: "indices", type: "number[]", desc: "N-dimensional indices, e.g. [1, 2]" },
+        ],
+      },
     ],
   },
   {
@@ -134,6 +144,20 @@ const toolGroups = [
           { name: "inputs", type: "number[]", desc: "Input values" },
           { name: "weights", type: "number[]", desc: "Weight values (same length as inputs)" },
           { name: "bias", type: "number", desc: "Bias value" },
+        ],
+      },
+      {
+        name: "autograd_neuron_tensor",
+        signature: 'autograd_neuron_tensor(input_data, input_shape, weight_data, weight_shape, bias_data, bias_shape)',
+        description: "Run a tensor-level layer: out = tanh(x @ w + b). Returns output and gradients for x, w, b.",
+        example: 'autograd_neuron_tensor([1, 2], [1, 2], [0.5, -0.3, 0.8, 0.1], [2, 2], [0.1, -0.2], [1, 2])',
+        args: [
+          { name: "input_data", type: "number[]", desc: "Flat input values" },
+          { name: "input_shape", type: "number[]", desc: "Input shape, e.g. [1, 2]" },
+          { name: "weight_data", type: "number[]", desc: "Flat weight values" },
+          { name: "weight_shape", type: "number[]", desc: "Weight shape, e.g. [2, 2]" },
+          { name: "bias_data", type: "number[]", desc: "Flat bias values" },
+          { name: "bias_shape", type: "number[]", desc: "Bias shape, e.g. [1, 2]" },
         ],
       },
     ],
@@ -234,6 +258,84 @@ const toolGroups = [
         args: [
           { name: "predicted", type: "string", desc: "Predicted tensor name" },
           { name: "target", type: "string", desc: "Target tensor name" },
+        ],
+      },
+    ],
+  },
+  {
+    name: "GGUF & LLaMA",
+    description: "Inspect model files, load tensors, and run LLaMA inference.",
+    tools: [
+      {
+        name: "gguf_inspect",
+        signature: 'gguf_inspect(path)',
+        description: "Inspect a GGUF model file: metadata, architecture, tensor list.",
+        example: 'gguf_inspect("model-files/tiny-llama.gguf")',
+        args: [
+          { name: "path", type: "string", desc: "Path to .gguf file (relative to rs-tensor/)" },
+        ],
+      },
+      {
+        name: "gguf_load_tensor",
+        signature: 'gguf_load_tensor(path, tensor_name, store_as?)',
+        description: "Load a specific tensor from a GGUF file into the tensor store.",
+        example: 'gguf_load_tensor("model.gguf", "token_embd.weight", "embeddings")',
+        args: [
+          { name: "path", type: "string", desc: "Path to .gguf file" },
+          { name: "tensor_name", type: "string", desc: "Tensor name in the GGUF file" },
+          { name: "store_as", type: "string?", desc: "Name in tensor store (default: tensor_name)" },
+        ],
+      },
+      {
+        name: "llama_load",
+        signature: 'llama_load(path)',
+        description: "Load a LLaMA model from a GGUF file for generation.",
+        example: 'llama_load("model-files/tiny-llama.gguf")',
+        args: [
+          { name: "path", type: "string", desc: "Path to .gguf file" },
+        ],
+      },
+      {
+        name: "llama_generate",
+        signature: 'llama_generate(prompt?, token_ids?, max_tokens, temperature)',
+        description: "Generate text from the loaded LLaMA model.",
+        example: 'llama_generate("hello", null, 20, 0.8)',
+        args: [
+          { name: "prompt", type: "string?", desc: "Text prompt (naive tokenization)" },
+          { name: "token_ids", type: "number[]?", desc: "Raw token IDs (alternative to prompt)" },
+          { name: "max_tokens", type: "number", desc: "Max tokens to generate" },
+          { name: "temperature", type: "number", desc: "Sampling temperature (0 = greedy)" },
+        ],
+      },
+      {
+        name: "llama_inspect",
+        signature: 'llama_inspect()',
+        description: "Inspect the currently loaded LLaMA model: config, weights, vocab.",
+        example: 'llama_inspect()',
+        args: [],
+      },
+    ],
+  },
+  {
+    name: "Project Tools",
+    description: "Read files and run cargo commands on the rs-tensor project.",
+    tools: [
+      {
+        name: "read_file",
+        signature: 'read_file(path)',
+        description: "Read a file from the rs-tensor project directory.",
+        example: 'read_file("src/tensor.rs")',
+        args: [
+          { name: "path", type: "string", desc: "Path relative to rs-tensor/" },
+        ],
+      },
+      {
+        name: "cargo_exec",
+        signature: 'cargo_exec(command)',
+        description: "Run cargo build or cargo run. Returns stdout/stderr.",
+        example: 'cargo_exec("build")',
+        args: [
+          { name: "command", type: "string", desc: '"build" or "run"' },
         ],
       },
     ],

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
 import TryThis from "../components/ui/TryThis";
+import PredictExercise from "../components/ui/PredictExercise";
 import TensorCubes from "../components/three/TensorCubes";
 import ShapeExplorer from "../components/viz/ShapeExplorer";
 import StrideCalculator from "../components/viz/StrideCalculator";
@@ -97,6 +98,18 @@ export default function Chapter2() {
           <TensorCubes />
         </div>
 
+        <PredictExercise
+          question="You have a flat array [1,2,3,4,5,6]. You reshape to [3,2]. What value is at position [1, 0]?"
+          hint="Shape [3,2] means 3 rows, 2 cols. Row 1 starts at index 2 in the flat array."
+          answer="Value at [1,0] is 3."
+          explanation="Flat index = row × cols + col = 1 × 2 + 0 = 2. data[2] = 3. The stride for dim 0 is 2 (skip 2 elements per row), stride for dim 1 is 1."
+          commands={[
+            'tensor_create("t", [1,2,3,4,5,6], [3,2])',
+            'tensor_get_2d("t", 1, 0)',
+          ]}
+          commandLabel="Verify: create and index"
+        />
+
         <ShapeExplorer />
 
         {/* ============================================================ */}
@@ -183,6 +196,18 @@ export default function Chapter2() {
 //            = 1 * 3 + 2 * 1
 //            = 5
 // data[5] = 6  ← boom, that's your answer`}
+        />
+
+        <PredictExercise
+          question="A tensor has shape [2, 3]. What are its strides?"
+          hint="Strides are computed right-to-left: last dimension stride is always 1. Previous stride = next stride × next dimension size."
+          answer="Strides = [3, 1]. Skip 3 elements for next row, 1 element for next column."
+          explanation="dim 1 stride = 1 (always). dim 0 stride = 1 × 3 = 3. So [3, 1]. Moving one row down skips 3 elements (one full row of 3 columns)."
+          commands={[
+            'tensor_create("t", [1, 2, 3, 4, 5, 6], [2, 3])',
+            'tensor_inspect("t")',
+          ]}
+          commandLabel="Verify: check the strides"
         />
 
         <TryThis
@@ -283,6 +308,19 @@ export default function Chapter2() {
 
         <TransposeViz />
 
+        <PredictExercise
+          question="A [2,3] tensor has strides [3,1]. After transpose, what are the new shape and strides?"
+          hint="Transpose swaps both the shape dimensions AND the strides."
+          answer="Shape becomes [3,2], strides become [1,3]."
+          explanation="Dimensions swap: [2,3] → [3,2]. Strides swap: [3,1] → [1,3]. The data doesn't move! But now moving along dim 1 jumps 3 elements instead of 1 — the data is non-contiguous."
+          commands={[
+            'tensor_create("m", [1, 2, 3, 4, 5, 6], [2, 3])',
+            'tensor_transpose("m", 0, 1, "m_T")',
+            'tensor_inspect("m_T")',
+          ]}
+          commandLabel="Verify: transpose and inspect"
+        />
+
         <TryThis
           commands={[
             'tensor_create("m", [1, 2, 3, 4, 5, 6], [2, 3])',
@@ -370,6 +408,87 @@ export default function Chapter2() {
             </p>
           </div>
         </InfoCard>
+
+        {/* ============================================================ */}
+        {/* SECTION: More Operations */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">
+            Three More Operations You'll Use Constantly
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+            <p>
+              Before the mini project, let's cover three operations that show up
+              everywhere in neural networks:
+            </p>
+          </div>
+        </div>
+
+        <InfoCard title="Reshape — same data, new dimensions" accent="blue">
+          <div className="space-y-2">
+            <p>
+              Reshape changes the shape without touching the data. A [6] vector
+              becomes a [2,3] matrix or a [3,2] matrix — same 6 numbers, different
+              grid. The only rule: total elements must stay the same.
+            </p>
+            <p>
+              This is how you prepare data for different layers. A batch of images
+              might be [batch, height, width, channels] and needs to become
+              [batch, height×width×channels] for a linear layer.
+            </p>
+          </div>
+        </InfoCard>
+
+        <TryThis
+          commands={[
+            'tensor_create("v", [1,2,3,4,5,6], [6])',
+            'tensor_reshape("v", [2, 3], "mat")',
+            'tensor_inspect("mat")',
+            'tensor_reshape("v", [3, 2], "mat2")',
+            'tensor_inspect("mat2")',
+          ]}
+          label="Reshape a vector into different matrices"
+        />
+
+        <PredictExercise
+          question="You have a tensor with shape [2, 3] (6 elements). Can you reshape it to [4, 2]?"
+          hint="4 × 2 = 8, but you only have 6 elements."
+          answer="No! 4×2 = 8 ≠ 6. Reshape requires the total element count to stay the same."
+          explanation="This is the most common reshape error. If you need [4, 2], you'd need 8 elements. Reshape can't create or destroy data — it only reinterprets the layout."
+        />
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <InfoCard title="Add — element-wise addition" accent="emerald">
+            <div className="space-y-2">
+              <p>
+                <code>tensor_add</code> adds two tensors element by element.
+                Shapes must match. Used in residual connections — the backbone
+                of every transformer: <code>x = x + attention(x)</code>.
+              </p>
+            </div>
+          </InfoCard>
+          <InfoCard title="Mul — element-wise multiply" accent="amber">
+            <div className="space-y-2">
+              <p>
+                <code>tensor_mul</code> multiplies element by element. Not matrix
+                multiply — that's matmul. Used in gating mechanisms like SwiGLU:
+                <code>gate * signal</code>.
+              </p>
+            </div>
+          </InfoCard>
+        </div>
+
+        <TryThis
+          commands={[
+            'tensor_create("x", [1, 2, 3, 4], [2, 2])',
+            'tensor_create("y", [10, 20, 30, 40], [2, 2])',
+            'tensor_add("x", "y", "sum")',
+            'tensor_inspect("sum")',
+            'tensor_mul("x", "y", "product")',
+            'tensor_inspect("product")',
+          ]}
+          label="Try element-wise add and multiply"
+        />
 
         {/* ============================================================ */}
         {/* MINI PROJECT */}

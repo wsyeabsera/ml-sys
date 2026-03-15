@@ -9,6 +9,7 @@ const chapters = [
   { num: 6, title: "Model Files", path: "/learn/6" },
   { num: 7, title: "Transformers", path: "/learn/7" },
   { num: 8, title: "Running a Real LLM", path: "/learn/8" },
+  { num: 9, title: "Training", path: "/learn/9" },
 ];
 
 export default function LearnNav({ current }: { current: number }) {

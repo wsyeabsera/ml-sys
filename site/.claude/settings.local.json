@@ -30,7 +30,10 @@
       "Bash(npx vitest:*)",
       "Bash(mkdir:*)",
       "Bash(grep:*)",
-      "Bash(for file:*)"
+      "Bash(for file:*)",
+      "Bash(git add:*)",
+      "Bash(echo \"=== Final counts ===\" echo \"\" echo \"Pages:\" ls /Users/yab/Projects/ml-sys/site/src/pages/*.tsx)",
+      "Bash(wc -l echo \"\" echo \"Exercises:\" grep -rl \"PredictExercise\" /Users/yab/Projects/ml-sys/site/src/pages/*.tsx)"
     ]
   },
   "enableAllProjectMcpServers": true,

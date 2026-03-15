@@ -2,23 +2,18 @@
 
 Interactive tools for experimenting with ML concepts in the browser, connected to the rs-tensor MCP.
 
-## Current state
+## Current state (2026-03-15)
 
-- **REPL** (`/playground`) — working. JS eval + MCP tools, output persistence, "Open in Visualizer" links.
-- **Visualizer** (`/visualize`) — 5 rich viz types: tensor explorer, autograd graph, neuron graph, attention heatmap, MLP diagram.
-- **Learning Arc** (`/learn/1-8`) — 8 chapters with TryThis, PredictExercise (18 exercises), mini projects, Claude prompts.
-- **Tests** — 78 automated tests across parsers, eval engine, and bridge integration.
+- **REPL** (`/playground`) — JS eval + MCP tools, output persistence, "Open in Visualizer" links.
+- **Visualizer** (`/visualize`) — 6 rich viz types: tensor explorer, autograd graph, neuron graph, attention heatmap, MLP diagram, training loss curves.
+- **Learning Arc** (`/learn/1-8`) — 8 chapters with TryThis, PredictExercise (18 exercises in ch3/4/5/7), mini projects.
+- **Projects** (`/projects/and`, `/projects/xor`) — 2 guided training projects with exercises.
+- **Training tools** — 6 new MCP tools: create_dataset, init_mlp, mse_loss, train_mlp, evaluate_mlp, mlp_predict.
+- **Tool Reference** (`/reference`) — all 28 MCP tools documented across 7 categories.
+- **Tests** — 78+ automated tests (parsers, eval engine, bridge integration).
 - **Claude Skills** — quiz-me, walk-through-chapter, debug-my-understanding, experiment.
 
-## Next: Training & Projects
-
-Documented in **[next-phase-training.md](./next-phase-training.md)**:
-- 6 new MCP tools: create_dataset, init_mlp, mse_loss, train_mlp, evaluate_mlp, mlp_predict
-- Training visualization (loss curves, dataset scatter plots)
-- 4 project pages: Train AND, XOR Problem, Tiny Language Model, Attention Explorer
-- Design decisions: in-place weight updates, MVP without streaming, both pages + skills
-
-## All documents
+## Documents
 
 - **[architecture.md](./architecture.md)** — REPL design: three layers, Web Worker, stateless bridge.
 - **[build-plan.md](./build-plan.md)** — Phases 0-4 (all complete).
@@ -26,4 +21,5 @@ Documented in **[next-phase-training.md](./next-phase-training.md)**:
 - **[testing-and-observability.md](./testing-and-observability.md)** — Test strategy, observability MCP design.
 - **[chapter-rework.md](./chapter-rework.md)** — Chapter restructure plan, tone guide.
 - **[visualizer.md](./visualizer.md)** — Rich viz page design (all phases complete).
-- **[next-phase-training.md](./next-phase-training.md)** — Training tools, project pages, design decisions.
+- **[next-phase-training.md](./next-phase-training.md)** — Training tools (done), project pages (2 of 4 built).
+- **[gap-analysis.md](./gap-analysis.md)** — Current gaps and fixes needed.

@@ -5,6 +5,7 @@ import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
 import TryThis from "../components/ui/TryThis";
 import LearnNav from "../components/ui/LearnNav";
+import PredictExercise from "../components/ui/PredictExercise";
 import GgufLayoutViz from "../components/viz/GgufLayoutViz";
 
 export default function Chapter8() {
@@ -259,6 +260,20 @@ output_norm.weight         → final RMSNorm`}
             size, and for inference the quality loss is often negligible.
           </p>
         </div>
+
+        <PredictExercise
+          question="A 7B parameter model at F32 (4 bytes per value) is 28GB. At Q4_0 (~4.5 bits per value), roughly how big is it?"
+          hint="4.5 bits ≈ 0.5625 bytes. Compare to F32's 4 bytes."
+          answer="About 4GB. That's a 7x compression — from 28GB to ~4GB."
+          explanation="28GB × (4.5/32) ≈ 3.9GB. This is why quantization matters: it's the difference between 'fits in my laptop RAM' and 'needs a server.' The quality loss for Q4_0 is surprisingly small for inference."
+        />
+
+        <PredictExercise
+          question="A LLaMA model has 32 transformer layers. Each layer has 9 weight tensors. How many total tensors are in the GGUF file? (Don't forget the global ones.)"
+          hint="32 layers × 9 tensors = block tensors. Plus token_embd, output, output_norm = 3 global."
+          answer="32 × 9 + 3 = 291 tensors."
+          explanation="This matches what you'd see in gguf_inspect. The naming pattern is blk.0.attn_q.weight through blk.31.attn_q.weight, etc. Each layer is identical in structure, just different weights."
+        />
 
         <InfoCard title="Column-major gotcha" accent="amber">
           <div className="space-y-2">

@@ -2,7 +2,7 @@ import PageTransition from "../components/layout/PageTransition";
 import { motion } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
-import ChapterNav from "../components/ui/ChapterNav";
+import { Link } from "react-router-dom";
 import DataFlowDiagram from "../components/viz/DataFlowDiagram";
 import { mcpTools, categories } from "../data/mcp-tools";
 import { useState } from "react";
@@ -340,7 +340,11 @@ export default function Chapter4() {
           </div>
         </InfoCard>
 
-        <ChapterNav current={4} />
+        <div className="pt-8 border-t border-[var(--color-surface-overlay)]">
+          <Link to="/learn/1" className="text-sm text-[var(--color-accent-blue)] hover:underline">
+            ← Back to learning arc
+          </Link>
+        </div>
       </div>
     </PageTransition>
   );

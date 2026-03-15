@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 const projects = [
   { id: "and", title: "Train AND Gate", path: "/projects/and" },
   { id: "xor", title: "The XOR Problem", path: "/projects/xor" },
+  { id: "attention", title: "Attention Explorer", path: "/projects/attention" },
 ];
 
 export default function ProjectNav({ current }: { current: string }) {

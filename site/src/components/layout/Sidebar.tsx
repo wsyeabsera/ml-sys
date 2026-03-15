@@ -12,6 +12,7 @@ const learnChapters = [
   { path: "/learn/6", icon: "06", title: "Model Files" },
   { path: "/learn/7", icon: "07", title: "Transformers" },
   { path: "/learn/8", icon: "08", title: "Running a Real LLM" },
+  { path: "/learn/9", icon: "09", title: "Training" },
 ];
 
 const playgroundItems = [
@@ -23,6 +24,7 @@ const playgroundItems = [
 const projectItems = [
   { path: "/projects/and", title: "Train AND Gate", icon: "01" },
   { path: "/projects/xor", title: "The XOR Problem", icon: "02" },
+  { path: "/projects/attention", title: "Attention Explorer", icon: "03" },
 ];
 
 const miscItems = [

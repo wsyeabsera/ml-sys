@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
 import LearnNav from "../components/ui/LearnNav";
+import PredictExercise from "../components/ui/PredictExercise";
 import TransformerBlockViz from "../components/viz/TransformerBlockViz";
 
 export default function Chapter10() {
@@ -161,6 +162,13 @@ pub struct TransformerBlock {
 }`}
         />
 
+        <PredictExercise
+          question="A model has 6 layers, each with 9 weight tensors, plus 3 global tensors. If you process one token, how many matvec operations happen in the forward pass?"
+          hint="Each layer does: Q projection, K projection, V projection, attention output projection, FFN gate, FFN up, FFN down = 7 matvecs. Plus the final output projection."
+          answer="6 × 7 + 1 = 43 matvec operations for a single token."
+          explanation="Each layer has 7 matvec calls (4 attention projections + 3 FFN). Times 6 layers = 42. Plus the final output projection (logits) = 43 total. For a 32-layer model, that's 225 matvec operations per token. Now imagine doing that millions of times during training."
+        />
+
         {/* ============================================================ */}
         {/* SECTION: KV Cache */}
         {/* ============================================================ */}
@@ -215,6 +223,13 @@ pub struct TransformerBlock {
             </ol>
           </div>
         </div>
+
+        <PredictExercise
+          question="Without the KV cache, generating 100 tokens means recomputing K and V for all previous tokens at every step. What's the total work? With the cache?"
+          hint="Without cache: step 1 computes 1 token, step 2 computes 2, ..., step 100 computes 100. That's 1+2+...+100."
+          answer="Without cache: 5050 forward passes (O(n²)). With cache: 100 forward passes (O(n)). That's 50x less work."
+          explanation="The KV cache turns O(n²) generation into O(n). For 1000 tokens, it's 500x less work. This is why the KV cache is the single most important optimization in LLM serving — without it, generation would be impossibly slow."
+        />
 
         <CodeBlock
           lang="rust"
