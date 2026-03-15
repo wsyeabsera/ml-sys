@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface TryThisProps {
   commands: string[];
@@ -11,10 +11,12 @@ interface TryThisProps {
  */
 export default function TryThis({ commands, label = "Try this in the REPL" }: TryThisProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   function handleClick() {
     const encoded = btoa(JSON.stringify(commands));
-    navigate(`/playground?commands=${encoded}`);
+    const from = encodeURIComponent(location.pathname);
+    navigate(`/playground?commands=${encoded}&from=${from}`);
   }
 
   return (

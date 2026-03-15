@@ -560,6 +560,14 @@ export default function Chapter2() {
           </ul>
         </div>
 
+        <InfoCard title="Hands-on in the REPL" accent="emerald">
+          <p>
+            Want to practice tensor operations interactively? Open the REPL
+            and type <code>/workflow tensor-basics</code> for a guided tour
+            of create, inspect, transpose, reshape, and matmul.
+          </p>
+        </InfoCard>
+
         {/* ============================================================ */}
         {/* NEXT UP TEASER + NAV */}
         {/* ============================================================ */}

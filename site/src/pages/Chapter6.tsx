@@ -776,6 +776,15 @@ d(h) = d(pre₁) @ W₁^T
         {/* ============================================================ */}
         {/* NEXT UP + NAV */}
         {/* ============================================================ */}
+        <InfoCard title="Try it yourself" accent="emerald">
+          <p>
+            Want to train a neural network right now? Open the REPL and
+            type <code>/workflow xor</code> to train XOR from scratch, or{" "}
+            <code>/workflow vanishing-gradients</code> to see why deep
+            networks struggle with tanh.
+          </p>
+        </InfoCard>
+
         <div className="bg-[var(--color-surface-raised)] border border-[var(--color-surface-overlay)] rounded-xl p-5 space-y-2">
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
             Coming up next...

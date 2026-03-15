@@ -274,6 +274,13 @@ export default function ProjectAnd() {
           </div>
         </div>
 
+        <InfoCard title="Want the automated version?" accent="emerald">
+          <p>
+            Type <code>/workflow and</code> in the REPL for a guided
+            step-by-step walkthrough with explanations at each step.
+          </p>
+        </InfoCard>
+
         <ProjectNav current="and" />
       </div>
     </PageTransition>

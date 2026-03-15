@@ -704,6 +704,15 @@ Step 1: Through mul (cheat sheet: a.grad = b × grad, b.grad = a × grad)
           </ul>
         </div>
 
+        <InfoCard title="Guided walkthrough in the REPL" accent="emerald">
+          <p>
+            Want to see autograd in action step by step? Open the REPL and
+            type <code>/workflow autograd</code> for a guided tour, or{" "}
+            <code>/workflow vanishing-gradients</code> to watch gradients
+            shrink through layers of tanh.
+          </p>
+        </InfoCard>
+
         {/* ============================================================ */}
         {/* NEXT UP + NAV */}
         {/* ============================================================ */}

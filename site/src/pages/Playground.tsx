@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import PageTransition from "../components/layout/PageTransition";
 import Toolbar from "../components/playground/Toolbar";
@@ -153,13 +153,14 @@ const SNIPPETS = [
 
 export default function Playground() {
   const [settings] = useState(loadSettings);
-  const { history, running, status, execute, navigateHistory, resetMcp, commandHistory } = useRepl();
+  const { history, running, status, execute, navigateHistory, resetMcp, commandHistory, activeWorkflow } = useRepl();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const hasLoadedParams = useRef(false);
   const [prefill, setPrefill] = useState<{ text: string; seq: number } | undefined>(undefined);
   const prefillSeq = useRef(0);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [sourceChapter, setSourceChapter] = useState<string | null>(null);
 
   // Ctrl+/ to toggle shortcuts
   useEffect(() => {
@@ -177,8 +178,10 @@ export default function Playground() {
   useEffect(() => {
     if (hasLoadedParams.current) return;
     const encoded = searchParams.get("commands");
+    const from = searchParams.get("from");
     if (encoded && status === "connected") {
       hasLoadedParams.current = true;
+      if (from) setSourceChapter(from);
       try {
         const commands: string[] = JSON.parse(atob(encoded));
         // Clear existing history first, then run commands sequentially
@@ -230,6 +233,25 @@ export default function Playground() {
           onResetMcp={resetMcp}
           onExport={handleExport}
         />
+
+        {/* Back to chapter banner */}
+        {sourceChapter && (
+          <div className="flex items-center justify-between px-3 py-2 mb-2 rounded-lg bg-[var(--color-accent-blue)]/10 border border-[var(--color-accent-blue)]/30 text-xs">
+            <span className="text-[var(--color-text-secondary)]">
+              Running examples from a chapter
+            </span>
+            <Link
+              to={sourceChapter}
+              className="text-[var(--color-accent-blue)] hover:underline flex items-center gap-1"
+              onClick={() => setSourceChapter(null)}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+              </svg>
+              Back to chapter
+            </Link>
+          </div>
+        )}
 
         {/* Output history */}
         <div
@@ -324,7 +346,37 @@ export default function Playground() {
                 {entry.input}
                 {entry.durationMs !== undefined && <DurationBadge ms={entry.durationMs} />}
               </div>
-              {!entry.restored && (
+              {!entry.restored && entry.output.startsWith("__workflow_start__") ? (
+                <div className="bg-[var(--color-accent-emerald)]/10 border border-[var(--color-accent-emerald)]/30 rounded-lg px-4 py-3">
+                  <div className="text-sm font-semibold text-[var(--color-accent-emerald)]">
+                    {activeWorkflow?.workflow.title ?? "Workflow"}
+                  </div>
+                  <div className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+                    {activeWorkflow?.workflow.description} — Press "Next Step" below to begin
+                  </div>
+                </div>
+              ) : !entry.restored && entry.output.startsWith("__workflow_text__") ? (
+                <div className="bg-[var(--color-surface-raised)] border-l-2 border-[var(--color-accent-blue)] rounded-r-lg px-4 py-3 text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                  {entry.output.slice("__workflow_text__".length)}
+                </div>
+              ) : !entry.restored && entry.output.startsWith("__workflow_end__") ? (
+                <div className="bg-[var(--color-accent-blue)]/10 border border-[var(--color-accent-blue)]/30 rounded-lg px-4 py-3 text-sm text-[var(--color-accent-blue)] space-y-1">
+                  <div>Workflow complete!</div>
+                  {entry.output.length > "__workflow_end__".length && (() => {
+                    try {
+                      const link = JSON.parse(entry.output.slice("__workflow_end__".length));
+                      return (
+                        <Link
+                          to={link.path}
+                          className="inline-flex items-center gap-1 text-xs hover:underline"
+                        >
+                          Continue with {link.label} →
+                        </Link>
+                      );
+                    } catch { return null; }
+                  })()}
+                </div>
+              ) : !entry.restored ? (
                 <ReplOutput
                   output={entry.output}
                   isError={entry.isError}
@@ -332,7 +384,7 @@ export default function Playground() {
                   hasRichViz={entry.hasRichViz}
                   onExecute={execute}
                 />
-              )}
+              ) : null}
             </motion.div>
           ))}
           {history.some((e) => e.restored) &&
@@ -345,6 +397,41 @@ export default function Playground() {
             <RunningIndicator />
           )}
         </div>
+
+        {/* Workflow progress bar */}
+        {activeWorkflow && (
+          <div className="flex items-center gap-3 mb-2 px-3 py-2 rounded-lg bg-[var(--color-accent-emerald)]/10 border border-[var(--color-accent-emerald)]/30">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-[var(--color-accent-emerald)]">
+                  {activeWorkflow.workflow.title}
+                </span>
+                <span className="text-[10px] text-[var(--color-text-muted)]">
+                  Step {activeWorkflow.stepIndex + 1}/{activeWorkflow.workflow.steps.length}
+                </span>
+              </div>
+              <div className="w-full h-1 bg-[var(--color-surface-overlay)] rounded-full mt-1.5">
+                <div
+                  className="h-1 bg-[var(--color-accent-emerald)] rounded-full transition-all"
+                  style={{ width: `${((activeWorkflow.stepIndex) / activeWorkflow.workflow.steps.length) * 100}%` }}
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => execute("/next")}
+              disabled={running}
+              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--color-accent-emerald)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {activeWorkflow.stepIndex === 0 ? "Start" : "Next Step"}
+            </button>
+            <button
+              onClick={() => execute("/workflow stop")}
+              className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            >
+              Stop
+            </button>
+          </div>
+        )}
 
         {/* Feature pills above input */}
         <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
@@ -381,6 +468,17 @@ export default function Playground() {
           >
             training
           </button>
+          {!activeWorkflow && (
+            <button
+              onClick={() => execute("/workflow list")}
+              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-full border border-[var(--color-surface-overlay)] text-[var(--color-accent-emerald)] hover:border-[var(--color-accent-emerald)]/50 transition-colors"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
+              </svg>
+              /workflow
+            </button>
+          )}
           <div className="flex-1" />
           <span className="text-[10px] text-[var(--color-text-muted)]">
             Shift+Enter to run

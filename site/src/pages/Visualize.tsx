@@ -1,6 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import PageTransition from "../components/layout/PageTransition";
+
+const TYPE_CHAPTER_LINK: Record<string, { label: string; path: string }> = {
+  tensor: { label: "Learn 02: Tensors", path: "/learn/2" },
+  autograd: { label: "Learn 03: Autograd", path: "/learn/3" },
+  neuron: { label: "Learn 03: Autograd", path: "/learn/3" },
+  mlp: { label: "Learn 04: Neural Networks", path: "/learn/4" },
+  attention: { label: "Learn 05: Attention", path: "/learn/5" },
+  training: { label: "Learn 09: Training", path: "/learn/9" },
+  evaluation: { label: "Learn 09: Training", path: "/learn/9" },
+  prediction: { label: "Learn 09: Training", path: "/learn/9" },
+};
 import { loadOutput, listOutputs, type StoredOutput } from "../lib/db";
 import { parseResult } from "../lib/result-parser";
 import TensorViz from "../components/playground/TensorViz";
@@ -233,6 +244,17 @@ export default function Visualize() {
                   {output.id === "pasted" ? "Pasted data" : timeAgo(output.timestamp)}
                   {" · "}
                   Type: {output.type}
+                  {TYPE_CHAPTER_LINK[output.type] && (
+                    <>
+                      {" · "}
+                      <Link
+                        to={TYPE_CHAPTER_LINK[output.type].path}
+                        className="text-[var(--color-accent-blue)] hover:underline"
+                      >
+                        {TYPE_CHAPTER_LINK[output.type].label}
+                      </Link>
+                    </>
+                  )}
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">

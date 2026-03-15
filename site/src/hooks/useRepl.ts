@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useBridge } from "./useBridge";
 import { useEvalWorker } from "./useEvalWorker";
 import { isMcpCall, parseMcpCall, TOOL_INFO } from "../lib/mcp-shorthand";
+import { getWorkflow, listWorkflows, type Workflow } from "../lib/workflows";
 import {
   loadSession,
   saveSession,
@@ -25,6 +26,11 @@ export interface HistoryEntry {
   durationMs?: number;
 }
 
+export interface WorkflowState {
+  workflow: Workflow;
+  stepIndex: number;
+}
+
 export function useRepl() {
   const { status, callTool, toolNames, resetMcp: bridgeResetMcp } = useBridge();
   const { evaluate } = useEvalWorker();
@@ -32,6 +38,7 @@ export function useRepl() {
   const [running, setRunning] = useState(false);
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [activeWorkflow, setActiveWorkflow] = useState<WorkflowState | null>(null);
   const idRef = useRef(0);
 
   // Load saved session on mount
@@ -91,7 +98,7 @@ export function useRepl() {
           helpOutput = lines.join("\n\n") + "\n\nType help <tool_name> for details.";
         } else if (TOOL_INFO[arg]) {
           const info = TOOL_INFO[arg];
-          helpOutput = `${arg}\n  ${info.description}\n  Category: ${info.category}${info.example ? `\n  Example: ${info.example}` : ""}`;
+          helpOutput = `${arg}\n  ${info.description}\n  Category: ${info.category}${info.example ? `\n  Example: ${info.example}` : ""}${info.chapter ? `\n  Covered in: ${info.chapter}` : ""}${info.workflow ? `\n  Try: /workflow ${info.workflow}` : ""}`;
         } else {
           helpOutput = `Unknown tool: "${arg}". Type help to see all tools.`;
         }
@@ -108,6 +115,132 @@ export function useRepl() {
             hasRichViz: false,
           },
         ]);
+        return;
+      }
+
+      // Handle /workflow command
+      if (code.startsWith("/workflow")) {
+        const arg = code.slice(9).trim();
+
+        if (!arg || arg === "list") {
+          const workflows = listWorkflows();
+          const listing = workflows
+            .map((w) => `/workflow ${w.name} — ${w.title}`)
+            .join("\n");
+          setCommandHistory((prev) => [...prev, code]);
+          setHistory((prev) => [
+            ...prev,
+            {
+              id: idRef.current++,
+              input: code,
+              output: `Available workflows:\n\n${listing}\n\nType /workflow <name> to start.`,
+              outputId: null,
+              isError: false,
+              hasRichViz: false,
+            },
+          ]);
+          return;
+        }
+
+        if (arg === "stop") {
+          setActiveWorkflow(null);
+          setHistory((prev) => [
+            ...prev,
+            {
+              id: idRef.current++,
+              input: code,
+              output: "Workflow stopped.",
+              outputId: null,
+              isError: false,
+              hasRichViz: false,
+            },
+          ]);
+          return;
+        }
+
+        const wf = getWorkflow(arg);
+        if (!wf) {
+          setCommandHistory((prev) => [...prev, code]);
+          setHistory((prev) => [
+            ...prev,
+            {
+              id: idRef.current++,
+              input: code,
+              output: `Unknown workflow: "${arg}". Type /workflow list to see available workflows.`,
+              outputId: null,
+              isError: true,
+              hasRichViz: false,
+            },
+          ]);
+          return;
+        }
+
+        // Start workflow at step 0
+        setActiveWorkflow({ workflow: wf, stepIndex: 0 });
+        setCommandHistory((prev) => [...prev, code]);
+        setHistory((prev) => [
+          ...prev,
+          {
+            id: idRef.current++,
+            input: code,
+            output: `__workflow_start__`,
+            outputId: null,
+            isError: false,
+            hasRichViz: false,
+          },
+        ]);
+        return;
+      }
+
+      // Handle /next in workflow mode
+      if (code === "/next" && activeWorkflow) {
+        const { workflow, stepIndex } = activeWorkflow;
+        const step = workflow.steps[stepIndex];
+
+        if (!step) {
+          setActiveWorkflow(null);
+          return;
+        }
+
+        // Show step text
+        setHistory((prev) => [
+          ...prev,
+          {
+            id: idRef.current++,
+            input: `Step ${stepIndex + 1}/${workflow.steps.length}`,
+            output: `__workflow_text__${step.text}`,
+            outputId: null,
+            isError: false,
+            hasRichViz: false,
+          },
+        ]);
+
+        // Run command if step has one
+        if (step.command) {
+          await execute(step.command);
+        }
+
+        // Advance to next step
+        const nextIndex = stepIndex + 1;
+        if (nextIndex >= workflow.steps.length) {
+          const nextLink = workflow.nextLink
+            ? JSON.stringify(workflow.nextLink)
+            : "";
+          setActiveWorkflow(null);
+          setHistory((prev) => [
+            ...prev,
+            {
+              id: idRef.current++,
+              input: "",
+              output: `__workflow_end__${nextLink}`,
+              outputId: null,
+              isError: false,
+              hasRichViz: false,
+            },
+          ]);
+        } else {
+          setActiveWorkflow({ workflow, stepIndex: nextIndex });
+        }
         return;
       }
 
@@ -195,7 +328,7 @@ export function useRepl() {
       ]);
       setRunning(false);
     },
-    [status, callTool, evaluate, toolNames],
+    [status, callTool, evaluate, toolNames, activeWorkflow],
   );
 
   const navigateHistory = useCallback(
@@ -235,5 +368,6 @@ export function useRepl() {
     navigateHistory,
     resetMcp,
     commandHistory,
+    activeWorkflow,
   };
 }

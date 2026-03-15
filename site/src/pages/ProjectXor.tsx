@@ -192,6 +192,14 @@ export default function ProjectXor() {
           </div>
         </div>
 
+        <InfoCard title="Want the automated version?" accent="emerald">
+          <p>
+            Type <code>/workflow xor</code> in the REPL for a guided
+            step-by-step walkthrough that runs all the commands with
+            explanations between each step.
+          </p>
+        </InfoCard>
+
         <ProjectNav current="xor" />
       </div>
     </PageTransition>
