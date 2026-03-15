@@ -1,13 +1,15 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useMemo } from "react";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { keymap, EditorView } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
+import { replExtensions } from "../../lib/repl-extensions";
 interface ReplInputProps {
   onExecute: (code: string) => void;
   onNavigateHistory: (direction: "up" | "down") => string | null;
   disabled: boolean;
   fontSize?: number;
+  prefill?: { text: string; seq: number };
 }
 
 function makeEditorStyles(fontSize: number) {
@@ -44,22 +46,57 @@ export default function ReplInput({
   onNavigateHistory,
   disabled,
   fontSize = 13,
+  prefill,
 }: ReplInputProps) {
   const cmRef = useRef<ReactCodeMirrorRef>(null);
+  const lastPrefillSeq = useRef(-1);
+
+  // When prefill changes, set editor content and focus
+  if (prefill && prefill.seq !== lastPrefillSeq.current) {
+    lastPrefillSeq.current = prefill.seq;
+    const view = cmRef.current?.view;
+    if (view) {
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: prefill.text },
+        selection: { anchor: prefill.text.length },
+      });
+      view.focus();
+    }
+  }
 
   const onExecuteRef = useRef(onExecute);
   onExecuteRef.current = onExecute;
   const onNavRef = useRef(onNavigateHistory);
   onNavRef.current = onNavigateHistory;
 
+  const replExts = useMemo(() => replExtensions(), []);
+
   const extensions = useCallback(
     () => [
       javascript({ typescript: true }),
       makeEditorStyles(fontSize),
+      ...replExts,
       Prec.highest(
         keymap.of([
           {
             key: "Shift-Enter",
+            run: (view) => {
+              const code = view.state.doc.toString();
+              if (code.trim()) {
+                onExecuteRef.current(code);
+                view.dispatch({
+                  changes: {
+                    from: 0,
+                    to: view.state.doc.length,
+                    insert: "",
+                  },
+                });
+              }
+              return true;
+            },
+          },
+          {
+            key: "Mod-Enter",
             run: (view) => {
               const code = view.state.doc.toString();
               if (code.trim()) {

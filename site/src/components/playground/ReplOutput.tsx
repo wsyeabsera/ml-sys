@@ -1,7 +1,38 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { parseResult } from "../../lib/result-parser";
 import TensorViz from "./TensorViz";
 import AutogradViz from "./AutogradViz";
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-[var(--color-surface-overlay)]"
+      title="Copy output"
+    >
+      {copied ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-emerald)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
+  );
+}
 
 interface ReplOutputProps {
   output: string;
@@ -102,23 +133,29 @@ export default function ReplOutput({ output, isError, outputId, hasRichViz }: Re
 
     case "number":
       return (
-        <pre className="text-xs p-3 rounded-lg bg-[var(--color-surface-raised)] text-[var(--color-accent-emerald)] font-mono text-sm font-semibold">
-          {String(result.data)}
-        </pre>
+        <div className="relative group">
+          <pre className="text-xs p-3 rounded-lg bg-[var(--color-surface-raised)] text-[var(--color-accent-emerald)] font-mono text-sm font-semibold">
+            {String(result.data)}
+          </pre>
+          <CopyButton text={String(result.data)} />
+        </div>
       );
 
     case "error":
       return (
-        <pre
-          className="whitespace-pre-wrap text-xs p-3 rounded-lg border-l-2"
-          style={{
-            backgroundColor: "rgba(244, 63, 94, 0.15)",
-            color: "#f43f5e",
-            borderLeftColor: "#f43f5e",
-          }}
-        >
-          {output}
-        </pre>
+        <div className="relative group">
+          <pre
+            className="whitespace-pre-wrap text-xs p-3 rounded-lg border-l-2"
+            style={{
+              backgroundColor: "rgba(244, 63, 94, 0.15)",
+              color: "#f43f5e",
+              borderLeftColor: "#f43f5e",
+            }}
+          >
+            {output}
+          </pre>
+          <CopyButton text={output} />
+        </div>
       );
 
     case "attention": {
@@ -253,10 +290,11 @@ export default function ReplOutput({ output, isError, outputId, hasRichViz }: Re
     case "array":
     case "object":
       return (
-        <div>
+        <div className="relative group">
           <pre className="whitespace-pre-wrap text-xs p-3 rounded-lg bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] font-mono">
             {JSON.stringify(result.data, null, 2)}
           </pre>
+          <CopyButton text={JSON.stringify(result.data, null, 2)} />
           {vizLink}
         </div>
       );
@@ -264,9 +302,12 @@ export default function ReplOutput({ output, isError, outputId, hasRichViz }: Re
     case "string":
     default:
       return (
-        <pre className="whitespace-pre-wrap text-xs p-3 rounded-lg bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)]">
-          {output}
-        </pre>
+        <div className="relative group">
+          <pre className="whitespace-pre-wrap text-xs p-3 rounded-lg bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)]">
+            {output}
+          </pre>
+          <CopyButton text={output} />
+        </div>
       );
   }
 }

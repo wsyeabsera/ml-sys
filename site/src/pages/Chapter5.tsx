@@ -89,16 +89,87 @@ export default function Chapter5() {
               points.
             </p>
             <p>
-              Now the important part: in ML, the "output" is the{" "}
-              <strong>loss</strong> (how wrong the model is), and the "inputs"
-              are the <strong>weights</strong> (the knobs the model can turn).
-              Gradients tell you which way to turn each knob to make the error
-              smaller. Positive gradient? Turn it down. Negative? Turn it up.
-              That's gradient descent. Literally the entire training algorithm in
-              two sentences.
+              That's all a gradient is — a ratio that tells you "how sensitive
+              is the output to this input?" For y = 3x, the answer is always 3.
+              For y = x², it depends on where you are (gradient = 2x). No
+              mystery here. It's just slope.
             </p>
           </div>
         </div>
+
+        {/* Exercise 0.5: Gradient as slope */}
+        <PredictExercise
+          question="For y = x² at x = 3, what is the gradient? What about at x = -5?"
+          hint="The gradient of x² is 2x. Plug in the values."
+          answer="At x=3: gradient = 6. At x=-5: gradient = -10."
+          explanation="The gradient tells you direction AND magnitude. At x=3, nudging x up makes y increase (positive gradient). At x=-5, nudging x up makes y DECREASE (negative gradient, because you're on the left side of the parabola). The sign tells you which way y moves."
+        />
+
+        {/* ============================================================ */}
+        {/* SECTION: Why Gradients Matter for ML */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">
+            Why Gradients Matter: From Slopes to Learning
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+            <p>
+              Okay, so gradients are slopes. Who cares? Here's who cares:
+              anyone training a machine learning model.
+            </p>
+            <p>
+              In ML, you have a function that measures <strong>how wrong your model
+              is</strong>. This is called the <strong>loss</strong>. The loss
+              depends on numbers called <strong>weights</strong> — these are
+              the knobs the model can turn to make its predictions better or
+              worse. A big loss means "the model is doing badly." A small loss
+              means "getting closer."
+            </p>
+            <p>
+              Now here's the key insight: the gradient of the loss with respect
+              to a weight tells you <em>which direction to turn that knob</em>{" "}
+              to make the loss smaller.
+            </p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li>
+                <strong>Positive gradient?</strong> The loss increases when you
+                increase this weight. So <em>decrease it</em>.
+              </li>
+              <li>
+                <strong>Negative gradient?</strong> The loss increases when you
+                decrease this weight. So <em>increase it</em>.
+              </li>
+              <li>
+                <strong>Large gradient?</strong> Take a bigger step — this
+                weight has a lot of influence.
+              </li>
+              <li>
+                <strong>Tiny gradient?</strong> This weight barely matters right
+                now. Small step.
+              </li>
+            </ul>
+            <p>
+              That's <strong>gradient descent</strong>: compute the gradient of
+              the loss for every weight, then nudge each weight in the
+              direction that makes the loss smaller. Repeat a thousand times.
+              That's it. That's the entire training algorithm that powers every
+              neural network ever built.
+            </p>
+          </div>
+        </div>
+
+        <InfoCard title="Why 'descent'?" accent="blue">
+          <div className="space-y-2">
+            <p>
+              Imagine the loss as a hilly landscape. You're standing on the
+              hills and you want to reach the lowest valley (smallest loss).
+              The gradient tells you the slope of the ground under your feet.
+              Gradient descent says: "always step downhill." It's a greedy
+              strategy — you just keep going downhill and hope you find a
+              good valley. Surprisingly, this works incredibly well in practice.
+            </p>
+          </div>
+        </InfoCard>
 
         {/* Exercise 1: First gradient prediction */}
         <PredictExercise
@@ -273,6 +344,67 @@ export default function Chapter5() {
           </div>
         </div>
 
+        {/* ============================================================ */}
+        {/* SECTION: Traced Backward Example */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">
+            Worked Example: Tracing Backward Through tanh(a*b + c)
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+            <p>
+              Let's put that cheat sheet to work. We'll trace through{" "}
+              <code>y = tanh(a*b + c)</code> with a=2, b=3, c=1 — step by step,
+              both forward and backward.
+            </p>
+            <p>
+              <strong>Forward pass</strong> (left to right, compute values):
+            </p>
+            <pre className="font-mono text-xs text-[var(--color-text-primary)] bg-[var(--color-surface-base)] rounded p-2">
+{`Step 1: d = a * b = 2 * 3 = 6           (mul)
+Step 2: e = d + c = 6 + 1 = 7           (add)
+Step 3: y = tanh(e) = tanh(7) = 0.9999  (tanh)`}
+            </pre>
+            <p>
+              <strong>Backward pass</strong> (right to left, compute gradients):
+            </p>
+            <pre className="font-mono text-xs text-[var(--color-text-primary)] bg-[var(--color-surface-base)] rounded p-2">
+{`Start:  dy/dy = 1.0                          (always starts at 1)
+
+Step 3: Through tanh (cheat sheet: (1 - c²) × grad)
+        e.grad = (1 - 0.9999²) × 1.0
+               = (1 - 0.9998) × 1.0
+               = 0.00018                     (tanh squashed the gradient!)
+
+Step 2: Through add (cheat sheet: grad passes through unchanged)
+        d.grad = e.grad = 0.00018
+        c.grad = e.grad = 0.00018
+
+Step 1: Through mul (cheat sheet: a.grad = b × grad, b.grad = a × grad)
+        a.grad = b × d.grad = 3 × 0.00018 = 0.00054
+        b.grad = a × d.grad = 2 × 0.00018 = 0.00036`}
+            </pre>
+            <p>
+              Notice how tanh absolutely <em>crushed</em> the gradient. The input
+              to tanh was 7, so the output was ~1.0 (saturated). That means
+              (1 - output²) ≈ 0.0002, and everything downstream got scaled
+              down to nearly zero. If you tried to train a weight in this
+              expression, the gradient is so small it would barely budge.
+            </p>
+            <p>
+              This is exactly why the vanishing gradient problem exists — and
+              you just saw it happen in four lines of arithmetic.
+            </p>
+          </div>
+        </div>
+
+        <TryThis
+          commands={[
+            'autograd_expr([["a", 2], ["b", 3], ["c", 1]], [["d", "mul", "a", "b"], ["e", "add", "d", "c"], ["y", "tanh", "e"]], "y")',
+          ]}
+          label="Verify: trace tanh(a*b + c) backward"
+        />
+
         {/* Exercise 3: Apply the rules */}
         <PredictExercise
           question="For y = (a + b) * c where a=1, b=2, c=5: what are the gradients of a, b, and c?"
@@ -411,8 +543,31 @@ export default function Chapter5() {
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
               Everything above used single numbers. Real neural networks use
-              tensors (matrices). The good news: the chain rule is identical.
-              The only tricky part is <strong>matmul gradients</strong>:
+              tensors (matrices). Good news: the chain rule is identical. For
+              element-wise operations, the scalar rule just applies to each
+              element independently:
+            </p>
+            <ul className="list-disc list-inside space-y-2 ml-2">
+              <li>
+                <strong>add:</strong> gradient is still 1 for each element.{" "}
+                <code>[a₀, a₁] + [b₀, b₁]</code> → each aᵢ.grad = 1, same
+                as scalars.
+              </li>
+              <li>
+                <strong>mul (element-wise):</strong> gradient of aᵢ is bᵢ.{" "}
+                <code>[2, 3] * [4, 5]</code> → a.grad = [4, 5], b.grad = [2, 3].
+                Same rule, applied per-element.
+              </li>
+              <li>
+                <strong>tanh:</strong> applied element-wise too.{" "}
+                <code>tanh([0, 100])</code> → grad = [1.0, ≈0]. Each
+                element has its own gradient factor.
+              </li>
+            </ul>
+            <p>
+              The only <em>new</em> thing is <strong>matmul</strong>, because
+              it mixes elements together (each output depends on multiple
+              inputs):
             </p>
             <ul className="list-disc list-inside space-y-1 ml-2">
               <li>

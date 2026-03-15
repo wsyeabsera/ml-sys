@@ -61,6 +61,61 @@ return x`}
         </InfoCard>
 
         {/* ============================================================ */}
+        {/* SECTION: What Does a Weight Matrix Do? */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">
+            But First: What Does a Weight Matrix Actually Do?
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+            <p>
+              Before we jump into layer formulas, let's build intuition for
+              <em>why</em> neural networks use matrix multiplication. Why not
+              some other operation? What's special about <code>x @ W</code>?
+            </p>
+            <p>
+              Think of each <strong>row of W</strong> as a <em>pattern
+              detector</em>. When you compute <code>x @ W</code>, each output
+              neuron computes a <strong>dot product</strong> between the input
+              and one column of W. A dot product measures similarity — how
+              much the input "matches" the pattern stored in that weight column.
+            </p>
+            <pre className="font-mono text-xs text-[var(--color-text-primary)] bg-[var(--color-surface-base)] rounded p-2">
+{`Input:  x = [1.0, 2.0]     (2 features)
+Weight: W = [[0.5, -0.3],   (2 inputs → 2 outputs)
+             [0.8,  0.1]]
+
+Output neuron 0: 1.0 × 0.5 + 2.0 × 0.8 = 2.1
+  → "I'm looking for inputs where feature 0 and feature 1 are both positive"
+
+Output neuron 1: 1.0 × (-0.3) + 2.0 × 0.1 = -0.1
+  → "I fire weakly — this input doesn't match my pattern much"`}
+            </pre>
+            <p>
+              High value = "this input matches what I'm looking for."
+              Low value = "nah, not my thing." The <strong>bias</strong> shifts
+              the threshold for when a neuron "fires" — like adjusting the
+              sensitivity. And <strong>tanh</strong> squashes the result so no
+              single neuron can dominate with huge values.
+            </p>
+            <p>
+              During training, the network <em>learns</em> what patterns to
+              detect by adjusting the weights. It starts with random patterns
+              and gradually sculpts them until they're useful for the task.
+              Nobody tells it what patterns to look for — it figures that out
+              from the data.
+            </p>
+          </div>
+        </div>
+
+        <PredictExercise
+          question="If input x = [0, 0, 5] and a weight column w = [1, 1, 0], what's the dot product? What pattern is this weight 'looking for'?"
+          hint="Dot product = 0×1 + 0×1 + 5×0. The weight has high values for features 0 and 1."
+          answer="Dot product = 0. The weight is looking for patterns where features 0 and 1 are active, but this input only has feature 2 active — no match."
+          explanation="The weight [1, 1, 0] acts as a detector for 'features 0 and 1 both present.' Input [0, 0, 5] has neither, so the response is zero despite having a large value in feature 2. The weight doesn't care about feature 2 at all (weight is 0 there). This is how neurons specialize — each weight column 'pays attention' to different input features."
+        />
+
+        {/* ============================================================ */}
         {/* SECTION: What is a Layer */}
         {/* ============================================================ */}
         <div className="space-y-4">
@@ -69,6 +124,7 @@ return x`}
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
+              Now you know <em>why</em> matmul — each neuron detects a pattern.
               A fully-connected layer computes:{" "}
               <code>out = tanh(x @ W + b)</code>. Three operations:
             </p>
@@ -447,22 +503,35 @@ tanh:    tanh(0.013) = 0.013  (tanh of small values ≈ identity)`}
           explanation="This is the vanishing gradient problem. If tanh outputs are near ±1, the gradient factor (1 - value²) is near 0. After many layers, gradients in early layers are effectively zero, so those layers can't learn. This is the main reason modern networks use ReLU (gradient = 1 for positive values) instead of tanh."
         />
 
-        <InfoCard title="The vanishing gradient problem" accent="amber">
+        <InfoCard title="The vanishing gradient problem — with real numbers" accent="amber">
           <div className="space-y-2">
             <p>
-              Notice step 4 above: every tanh multiplies the gradient by{" "}
-              <code>(1 - h²)</code>, which is always ≤ 1. After 10 layers of
-              tanh, gradients have been multiplied by ≤ 1 ten times — they
-              get <em>exponentially smaller</em>. By the time gradients reach
-              the first layer, they're essentially zero.
+              Let's make this concrete. Suppose a 5-layer network has these
+              tanh outputs at each layer:
+            </p>
+            <pre className="font-mono text-xs text-[var(--color-text-primary)] bg-[var(--color-surface-base)] rounded p-2">
+{`Layer 5 (output):  tanh output = 0.90 → gradient factor = 1 - 0.81 = 0.19
+Layer 4:           tanh output = 0.80 → gradient factor = 1 - 0.64 = 0.36
+Layer 3:           tanh output = 0.85 → gradient factor = 1 - 0.72 = 0.28
+Layer 2:           tanh output = 0.70 → gradient factor = 1 - 0.49 = 0.51
+Layer 1 (input):   tanh output = 0.75 → gradient factor = 1 - 0.56 = 0.44
+
+Total gradient reaching Layer 1:
+  0.19 × 0.36 × 0.28 × 0.51 × 0.44 = 0.0043`}
+            </pre>
+            <p>
+              The gradient reaching Layer 1 is <strong>0.43%</strong> of what
+              it was at the output. Layer 1 barely learns at all while Layer 5
+              learns quickly. In a 20-layer network, this number becomes
+              astronomically small — effectively zero.
             </p>
             <p>
               This is the <strong>vanishing gradient problem</strong>. It
               plagued early deep learning and is the main reason modern
-              networks use ReLU (which has gradient = 1 for positive values)
-              instead of tanh. But tanh is great for learning because you can
-              see the problem clearly — and understanding the problem is more
-              important than memorizing the solution.
+              networks use ReLU (gradient = 1 for positive values, 0 for
+              negative) instead of tanh. With ReLU, the gradient factor is
+              either 1 or 0 — no shrinking. But tanh is great for learning
+              because you can <em>see</em> the problem clearly.
             </p>
           </div>
         </InfoCard>
@@ -545,6 +614,121 @@ tanh:    tanh(0.013) = 0.013  (tanh of small values ≈ identity)`}
         </div>
 
         {/* ============================================================ */}
+        {/* SECTION: What Did the Hidden Layer Learn? */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">
+            What Did the Hidden Layer Actually Learn?
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+            <p>
+              This is the question most tutorials never answer. You've seen
+              data flow through layers and gradients flow backward. But what
+              does the hidden layer actually <em>compute</em>? What's the
+              "representation" it learns?
+            </p>
+            <p>
+              Think about the XOR problem (you'll build this in Project 2). XOR
+              has four inputs: [0,0], [0,1], [1,0], [1,1]. The outputs are 0,
+              1, 1, 0. Try to separate "outputs 1" from "outputs 0" with a
+              straight line. You can't — the 1s and 0s are diagonally opposite.
+            </p>
+            <p>
+              A single layer can only draw straight lines (linear boundaries).
+              So a 1-layer network <em>cannot</em> learn XOR. Full stop.
+            </p>
+            <p>
+              But a 2→2→1 network can. Here's why: the hidden layer
+              transforms those 4 input points into a <strong>new coordinate
+              system</strong> where XOR <em>becomes</em> linearly separable.
+              It remaps the inputs so that the 1s are on one side and the 0s
+              are on the other. Then the output layer just draws a straight
+              line through the new space.
+            </p>
+            <pre className="font-mono text-xs text-[var(--color-text-primary)] bg-[var(--color-surface-base)] rounded p-2">
+{`Original inputs:     Hidden layer output:
+[0,0] → XOR=0        → [0.1, -0.3]     (bottom-left)
+[0,1] → XOR=1        → [0.8,  0.7]     (top-right)
+[1,0] → XOR=1        → [0.7,  0.8]     (top-right)
+[1,1] → XOR=0        → [0.2,  0.1]     (bottom-left)
+
+Now [0,1] and [1,0] are close together — linearly separable!`}
+            </pre>
+            <p>
+              The hidden layer <em>invented</em> this representation during
+              training. Nobody told it "rearrange the points like this." It
+              discovered, through gradient descent, that this particular
+              transformation makes the output layer's job easy. That's the
+              magic of neural networks — they learn their own features.
+            </p>
+          </div>
+        </div>
+
+        <InfoCard title="Deeper = more abstract" accent="emerald">
+          <div className="space-y-2">
+            <p>
+              In bigger networks, each layer builds more abstract features
+              on top of the previous layer's output. Layer 1 might detect edges.
+              Layer 2 combines edges into shapes. Layer 3 combines shapes
+              into objects. Nobody programs these features — the network
+              discovers them by trying to minimize the loss. This is why
+              it's called "representation learning" — the network learns
+              <em>what</em> to look for, not just <em>how</em> to classify.
+            </p>
+          </div>
+        </InfoCard>
+
+        {/* ============================================================ */}
+        {/* SECTION: One Backward Step in Detail */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">
+            One Backward Step, Fully Traced
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+            <p>
+              The backprop steps above listed formulas without explanation.
+              Let's trace one step in detail so the formulas make sense.
+              Focus on Layer 1's matmul: <code>pre₁ = h @ W₁</code> where h
+              is the hidden layer output.
+            </p>
+            <p>
+              From the autograd chapter, you know: for <code>C = A @ B</code>,
+              the gradient of B is <code>A^T @ grad</code> and the gradient
+              of A is <code>grad @ B^T</code>. Let's apply that:
+            </p>
+            <pre className="font-mono text-xs text-[var(--color-text-primary)] bg-[var(--color-surface-base)] rounded p-2">
+{`pre₁ = h @ W₁
+  h shape:    [1, 3]   (hidden layer output, 3 neurons)
+  W₁ shape:   [3, 1]   (layer 1 weights)
+  pre₁ shape: [1, 1]   (output before tanh)
+
+Incoming gradient: d(pre₁) ≈ 1.0  (tanh was nearly linear here)
+
+d(W₁) = h^T @ d(pre₁)
+       = [3, 1]^T @ [1, 1]  ← wait, that's wrong. Let me be precise:
+       = [-0.197, 0.664, 0.537]^T @ [1.0]
+       = [[-0.197],     ← "how much should w[0] change?"
+          [ 0.664],     ← "how much should w[1] change?"
+          [ 0.537]]     ← "how much should w[2] change?"
+
+d(h) = d(pre₁) @ W₁^T
+     = [1.0] @ [0.7, -0.5, 0.9]
+     = [0.7, -0.5, 0.9]  ← this gets passed to layer 0`}
+            </pre>
+            <p>
+              See the pattern? <code>d(W₁) = h^T @ grad</code> — the weight
+              gradient is the input transposed times the incoming gradient.
+              This makes intuitive sense: weights connected to large
+              activations (like h[1] = 0.664) get large gradients. Weights
+              connected to small activations (like h[0] = -0.197) get small
+              gradients. <em>The gradient is proportional to how active the
+              input was.</em>
+            </p>
+          </div>
+        </div>
+
+        {/* ============================================================ */}
         {/* WHAT YOU LEARNED */}
         {/* ============================================================ */}
         <div className="bg-[var(--color-accent-blue)]/10 border border-[var(--color-accent-blue)]/30 rounded-xl p-5 space-y-3">
@@ -572,12 +756,19 @@ tanh:    tanh(0.013) = 0.013  (tanh of small values ≈ identity)`}
             </li>
             <li>
               The <strong>vanishing gradient problem</strong> makes early layers
-              learn slowly. Modern networks use ReLU instead of tanh to fix
-              this.
+              learn slowly — gradients shrink to 0.4% after just 5 layers of
+              tanh. Modern networks use ReLU to fix this.
             </li>
             <li>
-              You ran a full neural network forward and backward, and saw how
-              different inputs affect the output and gradients.
+              A <strong>weight matrix</strong> is a set of pattern detectors.
+              Each column computes a dot product with the input — high
+              value means "this pattern matches."
+            </li>
+            <li>
+              <strong>Hidden layers learn representations</strong> — they
+              rearrange the input into a new coordinate system where the
+              problem becomes solvable. Nobody programs this; it emerges from
+              training.
             </li>
           </ul>
         </div>

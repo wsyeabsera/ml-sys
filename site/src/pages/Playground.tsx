@@ -14,6 +14,8 @@ export default function Playground() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const hasLoadedParams = useRef(false);
+  const [prefill, setPrefill] = useState<{ text: string; seq: number } | undefined>(undefined);
+  const prefillSeq = useRef(0);
 
   // Load commands from URL query params (from TryThis buttons)
   useEffect(() => {
@@ -100,11 +102,15 @@ export default function Playground() {
               className={`space-y-1 ${entry.restored ? "opacity-40" : ""}`}
             >
               <div
-                className={
+                className={`cursor-pointer hover:bg-[var(--color-surface-overlay)]/50 rounded px-1 -mx-1 transition-colors ${
                   entry.restored
                     ? "text-[var(--color-text-muted)]"
                     : "text-[var(--color-accent-blue)]"
-                }
+                }`}
+                onClick={() => {
+                  setPrefill({ text: entry.input, seq: ++prefillSeq.current });
+                }}
+                title="Click to load into input"
               >
                 <span className="select-none">{">"} </span>
                 {entry.input}
@@ -139,10 +145,11 @@ export default function Playground() {
           onNavigateHistory={navigateHistory}
           disabled={false}
           fontSize={settings.fontSize}
+          prefill={prefill}
         />
         <p className="text-xs text-[var(--color-text-muted)] mt-1">
-          Shift+Enter to run &middot; Up/Down for history &middot; Type{" "}
-          <code>clear</code> to reset
+          Shift+Enter or Cmd+Enter to run &middot; Up/Down for history &middot; Type{" "}
+          <code>clear</code> to reset &middot; Start typing a tool name for autocomplete
         </p>
       </div>
     </PageTransition>

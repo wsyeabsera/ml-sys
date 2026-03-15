@@ -31,6 +31,31 @@ const TOOL_SCHEMAS: Record<string, string[]> = {
   mlp_predict: ["mlp", "input"],
 };
 
+/** Tool descriptions for autocomplete and help */
+export const TOOL_INFO: Record<string, { description: string; category: string; example?: string }> = {
+  tensor_create:    { category: "Tensor Basics", description: "Create a named tensor with data and shape", example: 'tensor_create("a", [1,2,3,4], [2,2])' },
+  tensor_inspect:   { category: "Tensor Basics", description: "Show tensor details (shape, strides, data)", example: 'tensor_inspect("a")' },
+  tensor_list:      { category: "Tensor Basics", description: "List all stored tensors", example: "tensor_list()" },
+  tensor_add:       { category: "Tensor Ops", description: "Element-wise add two tensors", example: 'tensor_add("a", "b", "c")' },
+  tensor_mul:       { category: "Tensor Ops", description: "Element-wise multiply two tensors", example: 'tensor_mul("a", "b", "c")' },
+  tensor_matmul:    { category: "Tensor Ops", description: "Matrix multiply two tensors", example: 'tensor_matmul("a", "b", "c")' },
+  tensor_transpose: { category: "Tensor Ops", description: "Transpose tensor dimensions (zero-copy)", example: 'tensor_transpose("a", 0, 1, "aT")' },
+  tensor_reshape:   { category: "Tensor Ops", description: "Reshape tensor to new dimensions", example: 'tensor_reshape("a", [4, 1], "a_flat")' },
+  tensor_get:       { category: "Tensor Ops", description: "Get a single element by indices", example: 'tensor_get("a", [0, 1])' },
+  tensor_get_2d:    { category: "Tensor Ops", description: "Get element at [row, col]", example: 'tensor_get_2d("a", 0, 1)' },
+  autograd_expr:    { category: "Autograd", description: "Build computation graph and compute gradients", example: 'autograd_expr([["a", 2], ["b", 3]], [["y", "mul", "a", "b"]], "y")' },
+  autograd_neuron:  { category: "Autograd", description: "Run a single neuron with scalar autograd", example: "autograd_neuron([2, 0], [-3, 1], 6.88)" },
+  autograd_neuron_tensor: { category: "Autograd", description: "Run a neuron layer with tensor autograd", example: "autograd_neuron_tensor([1, 2], [1, 2], [0.5, -0.3, 0.8, 0.1], [2, 2], [0.1, -0.2], [1, 2])" },
+  attention_forward: { category: "Neural Networks", description: "Compute scaled dot-product attention", example: "attention_forward(3, 4, [...], [...], [...])" },
+  mlp_forward:      { category: "Neural Networks", description: "Forward pass through an MLP with gradients", example: 'mlp_forward([1, 2], [1, 2], [{...}])' },
+  create_dataset:   { category: "Training", description: "Create a training dataset (and, xor, or)", example: 'create_dataset("xor", 4)' },
+  init_mlp:         { category: "Training", description: "Initialize an MLP with random weights", example: 'init_mlp([2, 3, 1], "my_mlp")' },
+  mse_loss:         { category: "Training", description: "Compute mean squared error loss", example: 'mse_loss("predicted", "target")' },
+  train_mlp:        { category: "Training", description: "Train an MLP on data with SGD", example: 'train_mlp("my_mlp", "inputs", "targets", 0.1, 100)' },
+  evaluate_mlp:     { category: "Training", description: "Evaluate MLP accuracy on test data", example: 'evaluate_mlp("my_mlp", "inputs", "targets")' },
+  mlp_predict:      { category: "Training", description: "Run a single prediction through trained MLP", example: 'mlp_predict("my_mlp", [1, 0])' },
+};
+
 export const TOOL_NAMES = new Set(Object.keys(TOOL_SCHEMAS));
 
 /**

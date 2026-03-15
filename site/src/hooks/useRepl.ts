@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useBridge } from "./useBridge";
 import { useEvalWorker } from "./useEvalWorker";
-import { isMcpCall, parseMcpCall } from "../lib/mcp-shorthand";
+import { isMcpCall, parseMcpCall, TOOL_INFO } from "../lib/mcp-shorthand";
 import {
   loadSession,
   saveSession,
@@ -70,6 +70,43 @@ export function useRepl() {
         setHistory([]);
         setCommandHistory([]);
         clearSession();
+        return;
+      }
+
+      // Handle help command
+      if (code === "help" || code.startsWith("help ")) {
+        const arg = code.slice(5).trim();
+        let helpOutput: string;
+
+        if (!arg) {
+          // List all tools grouped by category
+          const byCategory: Record<string, string[]> = {};
+          for (const [name, info] of Object.entries(TOOL_INFO)) {
+            (byCategory[info.category] ??= []).push(name);
+          }
+          const lines = Object.entries(byCategory).map(
+            ([cat, tools]) => `${cat}:\n  ${tools.join(", ")}`,
+          );
+          helpOutput = lines.join("\n\n") + "\n\nType help <tool_name> for details.";
+        } else if (TOOL_INFO[arg]) {
+          const info = TOOL_INFO[arg];
+          helpOutput = `${arg}\n  ${info.description}\n  Category: ${info.category}${info.example ? `\n  Example: ${info.example}` : ""}`;
+        } else {
+          helpOutput = `Unknown tool: "${arg}". Type help to see all tools.`;
+        }
+
+        setCommandHistory((prev) => [...prev, code]);
+        setHistory((prev) => [
+          ...prev,
+          {
+            id: idRef.current++,
+            input: code,
+            output: helpOutput,
+            outputId: null,
+            isError: false,
+            hasRichViz: false,
+          },
+        ]);
         return;
       }
 

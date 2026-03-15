@@ -101,3 +101,67 @@ pre {
   border-radius: 4px;
   border: 1px solid #e2e8f0;
 }
+
+/* ---- CodeMirror tooltip overrides for theme consistency ---- */
+
+/* Base tooltip styles — use CSS vars so they respond to theme */
+.cm-tooltip {
+  background-color: var(--color-surface-raised) !important;
+  border-color: var(--color-surface-overlay) !important;
+  color: var(--color-text-primary) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+}
+.cm-tooltip.cm-tooltip-autocomplete {
+  background-color: var(--color-surface-raised) !important;
+  border-color: var(--color-surface-overlay) !important;
+}
+.cm-tooltip-autocomplete > ul > li {
+  border-bottom-color: var(--color-surface-overlay) !important;
+}
+.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background-color: var(--color-accent-blue) !important;
+  color: white !important;
+}
+.cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionLabel {
+  color: white !important;
+}
+.cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+.cm-completionLabel {
+  color: var(--color-text-primary) !important;
+}
+.cm-completionDetail {
+  color: var(--color-text-secondary) !important;
+}
+.cm-completionInfo {
+  background-color: var(--color-surface-raised) !important;
+  border-left-color: var(--color-surface-overlay) !important;
+  color: var(--color-text-secondary) !important;
+}
+
+/* Light mode: lighter shadow + white tooltip bg */
+[data-theme="light"] .cm-tooltip {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+[data-theme="light"] .cm-tooltip.cm-tooltip-autocomplete {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+[data-theme="light"] .cm-tooltip-autocomplete > ul > li {
+  border-bottom-color: #f1f5f9 !important;
+}
+[data-theme="light"] .cm-completionInfo {
+  background-color: #f8fafc !important;
+  border-left-color: #e2e8f0 !important;
+}
+
+/* Light mode editor input */
+[data-theme="light"] .cm-editor {
+  color: #0f172a;
+}
+[data-theme="light"] .cm-editor .cm-placeholder {
+  color: #94a3b8 !important;
+}
