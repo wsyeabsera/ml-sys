@@ -10,6 +10,10 @@ export type ResultType =
   | "attention"
   | "mlp"
   | "neuron"
+  | "training"
+  | "dataset"
+  | "evaluation"
+  | "prediction"
   | "number"
   | "array"
   | "object"
@@ -60,6 +64,36 @@ export function parseResult(output: string, isError: boolean): ParsedResult {
       // Tensor list
       if (op === "tensor_list") {
         return { type: "tensor_list", data: parsed, raw: output };
+      }
+
+      // Training results
+      if (op === "train_mlp") {
+        return { type: "training", data: parsed, raw: output };
+      }
+
+      // Dataset creation
+      if (op === "create_dataset") {
+        return { type: "dataset", data: parsed, raw: output };
+      }
+
+      // Init MLP
+      if (op === "init_mlp") {
+        return { type: "object", data: parsed, raw: output };
+      }
+
+      // Evaluation
+      if (op === "evaluate_mlp") {
+        return { type: "evaluation", data: parsed, raw: output };
+      }
+
+      // Prediction
+      if (op === "mlp_predict") {
+        return { type: "prediction", data: parsed, raw: output };
+      }
+
+      // MSE loss
+      if (op === "mse_loss") {
+        return { type: "object", data: parsed, raw: output };
       }
     }
 

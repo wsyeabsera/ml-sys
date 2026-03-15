@@ -20,6 +20,11 @@ const playgroundItems = [
   { path: "/reference", title: "Tool Reference", icon: "??" },
 ];
 
+const projectItems = [
+  { path: "/projects/and", title: "Train AND Gate", icon: "01" },
+  { path: "/projects/xor", title: "The XOR Problem", icon: "02" },
+];
+
 const miscItems = [
   { path: "/misc/mcp-server", title: "The MCP Server", icon: "**" },
 ];
@@ -213,6 +218,7 @@ export default function Sidebar() {
       <nav className="flex-1 p-3 space-y-2 overflow-y-auto">
         <Section label="Playground" stateKey="playground" defaultOpen={true} items={playgroundItems} />
         <Section label="Learn" stateKey="learn" defaultOpen={true} items={learnChapters} />
+        <Section label="Projects" stateKey="projects" defaultOpen={true} items={projectItems} />
         <Section label="Misc" stateKey="misc" defaultOpen={false} items={miscItems} />
       </nav>
 

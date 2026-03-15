@@ -22,6 +22,13 @@ const TOOL_SCHEMAS: Record<string, string[]> = {
   ],
   attention_forward: ["seq_len", "d_k", "q_data", "k_data", "v_data"],
   mlp_forward: ["input_data", "input_shape", "layers"],
+  // Training tools
+  create_dataset: ["type", "n_samples"],
+  init_mlp: ["architecture", "name"],
+  mse_loss: ["predicted", "target"],
+  train_mlp: ["mlp", "inputs", "targets", "lr", "epochs"],
+  evaluate_mlp: ["mlp", "inputs", "targets"],
+  mlp_predict: ["mlp", "input"],
 };
 
 export const TOOL_NAMES = new Set(Object.keys(TOOL_SCHEMAS));

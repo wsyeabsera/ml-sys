@@ -168,6 +168,76 @@ const toolGroups = [
       },
     ],
   },
+  {
+    name: "Training",
+    description: "Create datasets, initialize networks, train with SGD, evaluate, and predict.",
+    tools: [
+      {
+        name: "create_dataset",
+        signature: 'create_dataset(type, n_samples?)',
+        description: "Create a toy dataset. Stores input and target tensors in the store.",
+        example: 'create_dataset("xor")',
+        args: [
+          { name: "type", type: "string", desc: '"and", "or", "xor", "circle"' },
+          { name: "n_samples", type: "number?", desc: "Sample count for circle (default 100)" },
+        ],
+      },
+      {
+        name: "init_mlp",
+        signature: 'init_mlp(architecture, name?)',
+        description: "Initialize an MLP with random Xavier weights. Stores weight tensors.",
+        example: 'init_mlp([2, 4, 1], "net")',
+        args: [
+          { name: "architecture", type: "number[]", desc: "Layer sizes, e.g. [2, 4, 1]" },
+          { name: "name", type: "string?", desc: 'Name prefix (default "mlp")' },
+        ],
+      },
+      {
+        name: "train_mlp",
+        signature: 'train_mlp(mlp, inputs, targets, lr, epochs)',
+        description: "Train an MLP using SGD. Returns loss history for visualization.",
+        example: 'train_mlp("net", "xor_inputs", "xor_targets", 0.5, 500)',
+        args: [
+          { name: "mlp", type: "string", desc: "MLP name prefix (from init_mlp)" },
+          { name: "inputs", type: "string", desc: "Input tensor name in store" },
+          { name: "targets", type: "string", desc: "Target tensor name in store" },
+          { name: "lr", type: "number", desc: "Learning rate (e.g. 0.1, 0.5)" },
+          { name: "epochs", type: "number", desc: "Number of training epochs" },
+        ],
+      },
+      {
+        name: "evaluate_mlp",
+        signature: 'evaluate_mlp(mlp, inputs, targets?)',
+        description: "Run forward pass without training. Returns predictions, loss, accuracy.",
+        example: 'evaluate_mlp("net", "xor_inputs", "xor_targets")',
+        args: [
+          { name: "mlp", type: "string", desc: "MLP name prefix" },
+          { name: "inputs", type: "string", desc: "Input tensor name" },
+          { name: "targets", type: "string?", desc: "Target tensor name (for loss/accuracy)" },
+        ],
+      },
+      {
+        name: "mlp_predict",
+        signature: 'mlp_predict(mlp, input)',
+        description: "Single-sample prediction through a trained MLP.",
+        example: 'mlp_predict("net", [1, 0])',
+        args: [
+          { name: "mlp", type: "string", desc: "MLP name prefix" },
+          { name: "input", type: "number[]", desc: "Input values for one sample" },
+        ],
+      },
+      {
+        name: "mse_loss",
+        signature: 'mse_loss(predicted, target)',
+        description: "Compute mean squared error and its gradient.",
+        example: 'mse_loss("predictions", "xor_targets")',
+        args: [
+          { name: "predicted", type: "string", desc: "Predicted tensor name" },
+          { name: "target", type: "string", desc: "Target tensor name" },
+        ],
+      },
+    ],
+  },
 ];
 
 export default function ToolReference() {

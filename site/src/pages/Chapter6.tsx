@@ -5,6 +5,7 @@ import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
 import TryThis from "../components/ui/TryThis";
 import LearnNav from "../components/ui/LearnNav";
+import PredictExercise from "../components/ui/PredictExercise";
 import MLPDiagram from "../components/viz/MLPDiagram";
 
 export default function Chapter6() {
@@ -157,6 +158,14 @@ impl Layer {
           label="Run this layer and see values + gradients"
         />
 
+        {/* Exercise: Layer output shape */}
+        <PredictExercise
+          question="If your input x has shape [1, 4] and W has shape [4, 3], what shape is the output of x @ W + b?"
+          hint="Matmul [1,4] × [4,3] gives you [1,?]. What does b's shape need to be?"
+          answer="Output shape is [1, 3]. b must be [1, 3] to broadcast."
+          explanation="The matmul contracts the inner dimension (4) and produces [1, 3]. The bias b adds element-wise, so it needs to match — [1, 3] or just [3] with broadcasting. The layer transformed 4 features into 3."
+        />
+
         {/* ============================================================ */}
         {/* SECTION: Why Nonlinearity */}
         {/* ============================================================ */}
@@ -200,6 +209,14 @@ impl Layer {
             </p>
           </div>
         </div>
+
+        {/* Exercise: Layer collapse */}
+        <PredictExercise
+          question="If you have two layers WITHOUT tanh: y = W2 @ (W1 @ x). Is this more powerful than a single layer y = W @ x?"
+          hint="Matrix multiplication is associative: A @ (B @ x) = (A @ B) @ x. What does that mean?"
+          answer="No! Two linear layers = one linear layer. W2 @ W1 = W_combined. Depth without nonlinearity buys you nothing."
+          explanation="This is why nonlinearities are essential, not optional. Without them, a 100-layer network has exactly the same expressive power as a 1-layer network. The tanh (or ReLU) between layers is what makes depth meaningful."
+        />
 
         <div className="grid gap-4 md:grid-cols-2">
           <InfoCard title="Without nonlinearity" accent="rose">
@@ -287,6 +304,14 @@ impl MLP {
             </p>
           </div>
         </InfoCard>
+
+        {/* Exercise: Dimension chaining */}
+        <PredictExercise
+          question="An MLP has architecture 3 → 5 → 2. How many weight matrices are there? What are their shapes?"
+          hint="Each arrow is one layer. Layer 0 maps 3→5, layer 1 maps 5→2."
+          answer="2 weight matrices: W0 is [3, 5] and W1 is [5, 2]. Plus biases b0 = [5] and b1 = [2]."
+          explanation="The number of layers = number of arrows in the architecture notation. W0 has shape [in_features, out_features] = [3, 5]. The out_features of layer 0 must equal the in_features of layer 1 — that's dimension chaining."
+        />
 
         {/* ============================================================ */}
         {/* SECTION: Worked example — 2-layer network */}
@@ -413,6 +438,14 @@ tanh:    tanh(0.013) = 0.013  (tanh of small values ≈ identity)`}
             </p>
           </InfoCard>
         </div>
+
+        {/* Exercise: Gradient flow */}
+        <PredictExercise
+          question="In a 2-layer network, every tanh multiplies the gradient by (1 - value²), which is ≤ 1. After 10 layers of tanh, what happens to the gradients in the first layer?"
+          hint="If you multiply a number by something ≤ 1 ten times in a row, what happens?"
+          answer="They shrink exponentially — potentially to near zero."
+          explanation="This is the vanishing gradient problem. If tanh outputs are near ±1, the gradient factor (1 - value²) is near 0. After many layers, gradients in early layers are effectively zero, so those layers can't learn. This is the main reason modern networks use ReLU (gradient = 1 for positive values) instead of tanh."
+        />
 
         <InfoCard title="The vanishing gradient problem" accent="amber">
           <div className="space-y-2">

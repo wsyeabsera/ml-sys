@@ -5,6 +5,7 @@ import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
 import TryThis from "../components/ui/TryThis";
 import LearnNav from "../components/ui/LearnNav";
+import PredictExercise from "../components/ui/PredictExercise";
 import ComputationGraph3D from "../components/three/ComputationGraph";
 import GradientFlow from "../components/viz/GradientFlow";
 import SimpleGraph from "../components/viz/SimpleGraph";
@@ -98,6 +99,30 @@ export default function Chapter5() {
             </p>
           </div>
         </div>
+
+        {/* Exercise 1: First gradient prediction */}
+        <PredictExercise
+          question="For y = a * b where a=2, b=3: what is a's gradient? What is b's gradient?"
+          hint="The gradient of a in a*b is just b (and vice versa). How much does y change when you nudge a?"
+          answer="a.grad = 3, b.grad = 2"
+          explanation="If a goes from 2 to 2.001, y goes from 6 to 6.003 — it moved by 0.003, which is b × 0.001. So a's gradient is b = 3. By the same logic, b's gradient is a = 2."
+          commands={[
+            'autograd_expr([["a", 2], ["b", 3]], [["y", "mul", "a", "b"]], "y")',
+          ]}
+          commandLabel="Verify: compute gradients for y = a * b"
+        />
+
+        {/* Exercise 2: Add operation */}
+        <PredictExercise
+          question="Now for y = a * b + c where a=2, b=3, c=1: what is c's gradient?"
+          hint="Addition passes gradients through unchanged. If the output gradient is 1, what does each input of + get?"
+          answer="c.grad = 1"
+          explanation="Addition is simple — both inputs get the same gradient that the output received. Since the output's gradient starts at 1, c gets 1. The add doesn't amplify or diminish the gradient."
+          commands={[
+            'autograd_expr([["a", 2], ["b", 3], ["c", 1]], [["d", "mul", "a", "b"], ["e", "add", "d", "c"]], "e")',
+          ]}
+          commandLabel="Verify: compute gradients for y = a*b + c"
+        />
 
         <TryThis
           commands={[
@@ -248,6 +273,31 @@ export default function Chapter5() {
           </div>
         </div>
 
+        {/* Exercise 3: Apply the rules */}
+        <PredictExercise
+          question="For y = (a + b) * c where a=1, b=2, c=5: what are the gradients of a, b, and c?"
+          hint="Work backward: the output gradient is 1. Mul gives c's grad = (a+b) and (a+b)'s grad = c. Then add passes that through to both a and b."
+          answer="a.grad = 5, b.grad = 5, c.grad = 3"
+          explanation="Step by step: (1) d = a+b = 3, y = d*c = 15. (2) Backward from y: d.grad = c = 5, c.grad = d = 3. (3) Through the add: a.grad = d.grad = 5, b.grad = d.grad = 5. The add just passes the gradient through to both inputs."
+          commands={[
+            'autograd_expr([["a", 1], ["b", 2], ["c", 5]], [["d", "add", "a", "b"], ["y", "mul", "d", "c"]], "y")',
+          ]}
+          commandLabel="Verify your answer"
+        />
+
+        {/* Exercise 4: Tanh changes everything */}
+        <PredictExercise
+          question="If y = tanh(x) and x = 0, what is x's gradient? What if x = 100?"
+          hint="tanh(0) = 0, so the derivative is 1 - 0² = 1. But tanh(100) ≈ 1, so the derivative is 1 - 1² ≈ 0."
+          answer="At x=0: grad = 1.0 (full gradient passes through). At x=100: grad ≈ 0 (gradient vanishes!)"
+          explanation="This is the vanishing gradient problem in one example. When tanh saturates (output near ±1), its gradient goes to zero. No gradient = no learning. This is why large values are dangerous — they kill gradient flow."
+          commands={[
+            'autograd_expr([["x", 0]], [["y", "tanh", "x"]], "y")',
+            'autograd_expr([["x", 100]], [["y", "tanh", "x"]], "y")',
+          ]}
+          commandLabel="Verify: try both x=0 and x=100"
+        />
+
         {/* ============================================================ */}
         {/* SECTION: Neuron */}
         {/* ============================================================ */}
@@ -276,6 +326,18 @@ export default function Chapter5() {
             Blue = inputs/weights. Orange = operations. Green = output.
           </p>
         </div>
+
+        {/* Exercise 5: Predict the neuron */}
+        <PredictExercise
+          question="Neuron: out = tanh(x0*w0 + x1*w1 + b) with x0=2, x1=0, w0=-3, w1=1, b=6.88. Which weight has the LARGER gradient magnitude — w0 or w1?"
+          hint="w0's gradient depends on x0 (= 2), and w1's gradient depends on x1 (= 0). If the input is zero, can the weight's gradient be nonzero?"
+          answer="w0 has the larger gradient. w1's gradient is 0 because x1 = 0."
+          explanation="For mul, the gradient of w is x × incoming_grad. Since x1 = 0, w1.grad = 0 × (something) = 0. The weight w1 can't learn at all when its input is zero — there's no signal to learn from. This is why dead inputs are a problem in neural networks."
+          commands={[
+            'autograd_neuron([2, 0], [-3, 1], 6.88)',
+          ]}
+          commandLabel="Run the neuron and check"
+        />
 
         <TryThis
           commands={[
@@ -307,6 +369,14 @@ export default function Chapter5() {
             </p>
           </div>
         </div>
+
+        {/* Exercise 6: Gradient accumulation */}
+        <PredictExercise
+          question="If d = a*b + a where a=2, b=3, what is a's gradient? (Remember: a is used TWICE.)"
+          hint="a contributes through two paths: once through the mul (gradient = b = 3) and once through the add directly (gradient = 1). What's the total?"
+          answer="a.grad = 4 (not 3, not 1 — it's the sum of both paths)"
+          explanation="Path 1 (a → mul → add): contributes b × 1 = 3. Path 2 (a → add directly): contributes 1 × 1 = 1. Total: 3 + 1 = 4. This is why autograd uses += not =. If you used =, you'd get either 3 or 1 depending on which path was computed last — both wrong."
+        />
 
         <InfoCard title="Worked example: gradient accumulation" accent="amber">
           <div className="space-y-2">

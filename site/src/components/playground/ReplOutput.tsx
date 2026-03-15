@@ -159,6 +159,78 @@ export default function ReplOutput({ output, isError, outputId, hasRichViz }: Re
       );
     }
 
+    case "training": {
+      const train = result.data as { mlp: string; epochs: number; initial_loss: number; final_loss: number };
+      return (
+        <div>
+          <div className="bg-[var(--color-surface-raised)] rounded-lg p-3 space-y-1">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-1.5 py-0.5 rounded bg-[var(--color-accent-emerald)]/20 text-[var(--color-accent-emerald)] font-mono">
+                trained
+              </span>
+              <span className="text-[var(--color-text-muted)]">
+                {train.epochs} epochs, loss: {train.initial_loss.toFixed(4)} → {train.final_loss.toFixed(4)}
+              </span>
+            </div>
+          </div>
+          {vizLink}
+        </div>
+      );
+    }
+
+    case "dataset": {
+      const ds = result.data as { type: string; n_samples: number; input_name: string; target_name: string };
+      return (
+        <div className="bg-[var(--color-surface-raised)] rounded-lg p-3 space-y-1">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="px-1.5 py-0.5 rounded bg-[var(--color-accent-blue)]/20 text-[var(--color-accent-blue)] font-mono">
+              dataset
+            </span>
+            <span className="text-[var(--color-text-muted)]">
+              {ds.type} — {ds.n_samples} samples → "{ds.input_name}", "{ds.target_name}"
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    case "evaluation": {
+      const ev = result.data as { predictions: { data: number[] }; loss?: number; accuracy?: number };
+      const preds = ev.predictions.data.map(p => p.toFixed(2)).join(", ");
+      return (
+        <div>
+          <div className="bg-[var(--color-surface-raised)] rounded-lg p-3 space-y-1">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-1.5 py-0.5 rounded bg-[var(--color-accent-amber)]/20 text-[var(--color-accent-amber)] font-mono">
+                eval
+              </span>
+              <span className="text-[var(--color-text-muted)]">
+                predictions: [{preds}]
+                {ev.accuracy !== undefined ? ` — accuracy: ${(ev.accuracy * 100).toFixed(0)}%` : ""}
+                {ev.loss !== undefined ? ` — loss: ${ev.loss.toFixed(4)}` : ""}
+              </span>
+            </div>
+          </div>
+          {vizLink}
+        </div>
+      );
+    }
+
+    case "prediction": {
+      const pred = result.data as { input: number[]; output: number[]; prediction: number };
+      return (
+        <div className="bg-[var(--color-surface-raised)] rounded-lg p-3 text-xs font-mono">
+          <span className="text-[var(--color-text-muted)]">input</span>{" "}
+          <span className="text-[var(--color-accent-blue)]">[{pred.input.join(", ")}]</span>
+          <span className="text-[var(--color-text-muted)]"> → </span>
+          <span className="text-[var(--color-accent-emerald)] text-sm font-semibold">
+            {pred.output.map(v => v.toFixed(3)).join(", ")}
+          </span>
+          <span className="text-[var(--color-text-muted)]"> (prediction: {pred.prediction})</span>
+        </div>
+      );
+    }
+
     case "neuron": {
       const neuron = result.data as { output: number; inputs: { value: number }[] };
       return (

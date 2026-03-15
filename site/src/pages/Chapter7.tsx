@@ -5,6 +5,7 @@ import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
 import TryThis from "../components/ui/TryThis";
 import LearnNav from "../components/ui/LearnNav";
+import PredictExercise from "../components/ui/PredictExercise";
 import AttentionViz from "../components/viz/AttentionViz";
 
 export default function Chapter7() {
@@ -100,6 +101,14 @@ export default function Chapter7() {
             </p>
           </div>
         </div>
+
+        {/* Exercise: Q/K dot product */}
+        <PredictExercise
+          question="If Query = [1, 0] and Key = [0, 1], what is their dot product (score)? What does this mean for attention?"
+          hint="Dot product = sum of element-wise multiplication. [1,0] · [0,1] = 1×0 + 0×1 = ?"
+          answer="Score = 0. These vectors are orthogonal — the query and key point in completely different directions."
+          explanation="A score of 0 means this key doesn't match what the query is looking for. After softmax, this position will get low (but not zero) attention weight. If Q and K were identical [1,0]·[1,0] = 1, that would be a perfect match — high attention."
+        />
 
         <InfoCard title="Why separate Q, K, V?" accent="amber">
           <div className="space-y-2">
@@ -215,6 +224,18 @@ export default function Chapter7() {
           </div>
         </div>
 
+        {/* Exercise: Predict attention weights */}
+        <PredictExercise
+          question="With 2 tokens where Q = K = identity [[1,0],[0,1]]: will the attention weights be (a) uniform [0.5, 0.5] for each row, or (b) concentrated on the diagonal?"
+          hint="Q[0] = [1,0] matches K[0] = [1,0] perfectly (score=1), but barely matches K[1] = [0,1] (score=0). After softmax..."
+          answer="(b) Concentrated on the diagonal — but not perfectly. Softmax of [0.71, 0] gives about [0.67, 0.33], not [1, 0]."
+          explanation="The raw scores are [[1,0],[0,1]], scaled to [[0.71,0],[0,0.71]]. Softmax never gives exactly 0 — even a zero-score token gets ~33% attention. This is by design: attention is always soft, never hard. The model can learn to make scores very large to sharpen attention, but it never completely ignores a token."
+          commands={[
+            'attention_forward(2, 2, [1,0,0,1], [1,0,0,1], [1,2,3,4])',
+          ]}
+          commandLabel="Verify: check the attention weights"
+        />
+
         <TryThis
           commands={[
             'attention_forward(2, 2, [1,0,0,1], [1,0,0,1], [1,2,3,4])',
@@ -268,6 +289,14 @@ export default function Chapter7() {
             </p>
           </div>
         </div>
+
+        {/* Exercise: Scaling effect */}
+        <PredictExercise
+          question="If d_k = 100 instead of 2, would the attention weights be sharper or softer (more uniform)? Why does dividing by √d_k help?"
+          hint="With d_k=100, dot products are ~50x larger. What does softmax do with very large inputs?"
+          answer="Without scaling: much sharper (nearly one-hot). The √d_k scaling normalizes this, keeping attention smooth regardless of dimension."
+          explanation="Dot products scale with dimension — with d_k=100, scores might be ~50 instead of ~1. Softmax of [50, 0] is basically [1.0, 0.0] — all attention on one token, none on others. Gradients vanish because softmax's Jacobian is near-zero for one-hot outputs. Dividing by √100 = 10 brings scores back to ~5, keeping softmax in its useful range."
+        />
 
         <InfoCard title="Softmax temperature intuition" accent="blue">
           <div className="space-y-2">
@@ -345,6 +374,14 @@ export default function Chapter7() {
     let output = weights.matmul(v);      // weights @ V → [seq, d_v]
     (output, weights)
 }`}
+        />
+
+        {/* Exercise: Reading attention */}
+        <PredictExercise
+          question="An attention weight matrix row is [0.1, 0.7, 0.2]. What does this mean for token 0's output?"
+          hint="The output for token 0 is: 0.1 × value_0 + 0.7 × value_1 + 0.2 × value_2."
+          answer="Token 0 gets 70% of its information from token 1, 20% from token 2, and only 10% from itself."
+          explanation="This is the core of attention: each token's output is a personalized blend of all values. Token 0 is 'paying most attention' to token 1 — maybe token 1 has the information token 0 needs. The model learned these weights through training."
         />
 
         <InfoCard title="Reading the attention weight matrix" accent="emerald">

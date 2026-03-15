@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
 import LearnNav from "../components/ui/LearnNav";
+import PredictExercise from "../components/ui/PredictExercise";
 import RopeViz from "../components/viz/RopeViz";
 
 export default function Chapter9() {
@@ -98,6 +99,14 @@ export default function Chapter9() {
         .collect();
     Tensor::new(data, self.shape.clone())
 }`}
+        />
+
+        {/* Exercise: RMSNorm */}
+        <PredictExercise
+          question="RMSNorm divides by the root-mean-square. If x = [3, 4], what is rms(x)? (Ignore epsilon.)"
+          hint="rms = √(mean(x²)) = √((9 + 16) / 2) = √(12.5)"
+          answer="rms(x) = √12.5 ≈ 3.54. After RMSNorm: [3/3.54, 4/3.54] ≈ [0.85, 1.13]."
+          explanation="RMSNorm normalizes the vector so its root-mean-square is 1. It's simpler than LayerNorm because it skips the mean subtraction — just divide by rms. The weight vector then rescales each dimension independently."
         />
 
         <InfoCard title="Pre-norm vs post-norm" accent="blue">
@@ -200,6 +209,22 @@ let ffn  = block.ffn_down.matvec(&gate.mul(&up));    // combine + project down`}
           </div>
         </div>
 
+        {/* Exercise: SwiGLU */}
+        <PredictExercise
+          question="SwiGLU has THREE weight matrices (gate, up, down) instead of the standard two. Why is the extra matrix worth the cost?"
+          hint="The gate path decides HOW MUCH signal to let through. The up path provides the signal. Together they learn a more selective transformation."
+          answer="The gate learns to selectively amplify or suppress different features. This gating mechanism is more expressive than a simple nonlinearity."
+          explanation="Think of it like a mixer board: the 'up' path is the audio signal, and the 'gate' path is the volume knob for each channel. The model can learn to turn up important features and mute irrelevant ones. Standard FFN just applies the same transformation to everything. SwiGLU is selective."
+        />
+
+        {/* Exercise: RoPE */}
+        <PredictExercise
+          question="Without any position encoding, would the sentence 'the cat sat' and 'sat cat the' produce different attention scores?"
+          hint="Attention scores come from Q dot K. If the embeddings don't encode position, does word order matter?"
+          answer="No! They'd produce identical attention scores. The model has no way to tell word order without position encoding."
+          explanation="This is why position encoding is essential, not optional. Without it, a transformer is a bag-of-words model — it sees WHAT tokens are present but not WHERE they are. RoPE solves this by rotating Q and K so the dot product naturally depends on relative position."
+        />
+
         <RopeViz />
 
         <CodeBlock
@@ -216,6 +241,14 @@ let ffn  = block.ffn_down.matvec(&gate.mul(&up));    // combine + project down`}
     }
     Tensor::new(data, self.shape.clone())
 }`}
+        />
+
+        {/* Exercise: RoPE relative position */}
+        <PredictExercise
+          question="RoPE rotates Q and K by position-dependent angles. If token at position 5 queries token at position 3, and token at position 10 queries token at position 8 — will the attention scores be the same?"
+          hint="Both pairs have the same relative distance: 5-3 = 2 and 10-8 = 2. RoPE encodes relative position..."
+          answer="Yes! Both get the same score because RoPE makes the dot product depend only on the relative distance (2), not the absolute positions."
+          explanation="This is the key property of RoPE: R(5)^T · R(3) = R(5-3) = R(2), and R(10)^T · R(8) = R(10-8) = R(2). Same relative distance, same rotation, same score. This means the model automatically generalizes position relationships — it doesn't need to see every absolute position during training."
         />
 
         <InfoCard title="Why rotation encodes relative position" accent="emerald">

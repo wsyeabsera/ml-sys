@@ -3,6 +3,7 @@ pub mod gguf_ops;
 pub mod llama_ops;
 pub mod project;
 pub mod tensor_ops;
+pub mod training_ops;
 
 use std::collections::HashMap;
 
@@ -31,6 +32,9 @@ use project::{CargoExecArgs, ReadFileArgs};
 use tensor_ops::{
     TensorAddArgs, TensorCreateArgs, TensorGet2dArgs, TensorGetArgs, TensorInspectArgs,
     TensorMatmulArgs, TensorMulArgs, TensorReshapeArgs, TensorTransposeArgs,
+};
+use training_ops::{
+    CreateDatasetArgs, InitMlpArgs, MseLossArgs, TrainMlpArgs, EvaluateMlpArgs, MlpPredictArgs,
 };
 
 #[tool_router(vis = "pub(crate)")]
@@ -450,6 +454,456 @@ impl TensorServer {
                 e
             ))])),
         }
+    }
+
+    // ── Training tools ─────────────────────────────────────────
+
+    #[tool(description = "Create a toy dataset for training. Types: 'and', 'or', 'xor', 'circle', 'spiral'. Stores input and target tensors in the tensor store.")]
+    async fn create_dataset(
+        &self,
+        Parameters(args): Parameters<CreateDatasetArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let (inputs, targets, n) = match args.dataset_type.as_str() {
+            "and" => (
+                vec![0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0],
+                vec![0.0, 0.0, 0.0, 1.0],
+                4usize,
+            ),
+            "or" => (
+                vec![0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0],
+                vec![0.0, 1.0, 1.0, 1.0],
+                4,
+            ),
+            "xor" => (
+                vec![0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0],
+                vec![0.0, 1.0, 1.0, 0.0],
+                4,
+            ),
+            "circle" => {
+                let n = args.n_samples.unwrap_or(100);
+                let mut inp = Vec::with_capacity(n * 2);
+                let mut tgt = Vec::with_capacity(n);
+                for i in 0..n {
+                    let angle = (i as f32 / n as f32) * std::f32::consts::TAU;
+                    let r = if i % 2 == 0 { 0.5 } else { 1.5 };
+                    inp.push(r * angle.cos());
+                    inp.push(r * angle.sin());
+                    tgt.push(if i % 2 == 0 { 0.0 } else { 1.0 });
+                }
+                (inp, tgt, n)
+            }
+            _ => {
+                return Ok(CallToolResult::error(vec![Content::text(
+                    format!("Unknown dataset type '{}'. Use: and, or, xor, circle", args.dataset_type),
+                )]));
+            }
+        };
+
+        let prefix = format!("{}_", args.dataset_type);
+        let input_name = format!("{}inputs", prefix);
+        let target_name = format!("{}targets", prefix);
+
+        let input_tensor = Tensor::new(inputs.clone(), vec![n, inputs.len() / n]);
+        let target_tensor = Tensor::new(targets.clone(), vec![n, 1]);
+
+        let mut store = self.tensors.lock().await;
+        store.insert(input_name.clone(), input_tensor);
+        store.insert(target_name.clone(), target_tensor);
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json!({
+                "op": "create_dataset",
+                "type": args.dataset_type,
+                "n_samples": n,
+                "input_name": input_name,
+                "input_shape": [n, inputs.len() / n],
+                "target_name": target_name,
+                "target_shape": [n, 1],
+            })).unwrap()
+        )]))
+    }
+
+    #[tool(description = "Initialize an MLP with random weights. Architecture is a list of layer sizes, e.g. [2, 4, 1]. Stores weight and bias tensors in the tensor store.")]
+    async fn init_mlp(
+        &self,
+        Parameters(args): Parameters<InitMlpArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let name = args.name.unwrap_or_else(|| "mlp".to_string());
+
+        if args.architecture.len() < 2 {
+            return Ok(CallToolResult::error(vec![Content::text(
+                "Architecture must have at least 2 elements (input and output size)".to_string(),
+            )]));
+        }
+
+        let mut store = self.tensors.lock().await;
+        let mut weight_names = Vec::new();
+        let mut total_params = 0usize;
+
+        for i in 0..args.architecture.len() - 1 {
+            let in_f = args.architecture[i];
+            let out_f = args.architecture[i + 1];
+
+            // Xavier initialization: uniform(-limit, limit) where limit = sqrt(6 / (in + out))
+            let limit = (6.0 / (in_f + out_f) as f32).sqrt();
+            let w_data: Vec<f32> = (0..in_f * out_f)
+                .map(|j| {
+                    let t = (j as f32 * 0.618033988 + i as f32 * 1.618).fract(); // deterministic pseudo-random
+                    t * 2.0 * limit - limit
+                })
+                .collect();
+            let b_data = vec![0.0f32; out_f];
+
+            let w_name = format!("{}_w{}", name, i);
+            let b_name = format!("{}_b{}", name, i);
+
+            store.insert(w_name.clone(), Tensor::new(w_data, vec![in_f, out_f]));
+            store.insert(b_name.clone(), Tensor::new(b_data, vec![1, out_f]));
+
+            weight_names.push(w_name);
+            weight_names.push(b_name);
+            total_params += in_f * out_f + out_f;
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json!({
+                "op": "init_mlp",
+                "name": name,
+                "architecture": args.architecture,
+                "layers": args.architecture.len() - 1,
+                "total_params": total_params,
+                "weight_names": weight_names,
+            })).unwrap()
+        )]))
+    }
+
+    #[tool(description = "Compute mean squared error loss between predicted and target tensors. Returns loss value and gradient.")]
+    async fn mse_loss(
+        &self,
+        Parameters(args): Parameters<MseLossArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        let predicted = match store.get(&args.predicted) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(
+                format!("Tensor '{}' not found", args.predicted),
+            )])),
+        };
+        let target = match store.get(&args.target) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(
+                format!("Tensor '{}' not found", args.target),
+            )])),
+        };
+
+        if predicted.data.len() != target.data.len() {
+            return Ok(CallToolResult::error(vec![Content::text(
+                format!("Size mismatch: predicted has {} elements, target has {}",
+                    predicted.data.len(), target.data.len()),
+            )]));
+        }
+
+        let n = predicted.data.len() as f32;
+        let loss: f32 = predicted.data.iter().zip(target.data.iter())
+            .map(|(p, t)| (p - t).powi(2))
+            .sum::<f32>() / n;
+        let grad: Vec<f32> = predicted.data.iter().zip(target.data.iter())
+            .map(|(p, t)| 2.0 * (p - t) / n)
+            .collect();
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json!({
+                "op": "mse_loss",
+                "loss": loss,
+                "gradient": {
+                    "data": grad,
+                    "shape": predicted.shape,
+                },
+            })).unwrap()
+        )]))
+    }
+
+    #[tool(description = "Train an MLP on a dataset using SGD. Runs forward → MSE loss → backward → weight update for each epoch. Returns training history.")]
+    async fn train_mlp(
+        &self,
+        Parameters(args): Parameters<TrainMlpArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let mut store = self.tensors.lock().await;
+
+        // Get dataset
+        let inputs = match store.get(&args.inputs) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(
+                format!("Input tensor '{}' not found", args.inputs),
+            )])),
+        };
+        let targets = match store.get(&args.targets) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(
+                format!("Target tensor '{}' not found", args.targets),
+            )])),
+        };
+
+        // Figure out how many layers by checking which weight tensors exist
+        let mut n_layers = 0;
+        while store.contains_key(&format!("{}_w{}", args.mlp, n_layers)) {
+            n_layers += 1;
+        }
+        if n_layers == 0 {
+            return Ok(CallToolResult::error(vec![Content::text(
+                format!("No MLP weights found with prefix '{}'", args.mlp),
+            )]));
+        }
+
+        let mut loss_history = Vec::with_capacity(args.epochs);
+
+        for _epoch in 0..args.epochs {
+
+            // Forward pass (all samples at once)
+            let mut activations = vec![inputs.clone()]; // activations[0] = input
+            let mut pre_activations = Vec::new(); // before tanh
+
+            for l in 0..n_layers {
+                let w = store.get(&format!("{}_w{}", args.mlp, l)).unwrap().clone();
+                let b = store.get(&format!("{}_b{}", args.mlp, l)).unwrap().clone();
+                let prev = activations.last().unwrap();
+
+                // matmul: prev [n_samples, in] @ w [in, out] → [n_samples, out]
+                let rows = prev.shape[0];
+                let cols = w.shape[1];
+                let inner = w.shape[0];
+                let mut result = vec![0.0f32; rows * cols];
+                for i in 0..rows {
+                    for j in 0..cols {
+                        let mut sum = 0.0;
+                        for k in 0..inner {
+                            sum += prev.data[i * inner + k] * w.data[k * cols + j];
+                        }
+                        result[i * cols + j] = sum + b.data[j]; // add bias
+                    }
+                }
+
+                pre_activations.push(Tensor::new(result.clone(), vec![rows, cols]));
+
+                // tanh activation
+                let activated: Vec<f32> = result.iter().map(|x| x.tanh()).collect();
+                activations.push(Tensor::new(activated, vec![rows, cols]));
+            }
+
+            // Compute MSE loss
+            let output = activations.last().unwrap();
+            let n_out = output.data.len() as f32;
+            let loss: f32 = output.data.iter().zip(targets.data.iter())
+                .map(|(p, t)| (p - t).powi(2))
+                .sum::<f32>() / n_out;
+            // loss is used below via loss_history
+
+            // Backward pass
+            // d_output = 2 * (output - target) / n_out
+            let mut grad: Vec<f32> = output.data.iter().zip(targets.data.iter())
+                .map(|(p, t)| 2.0 * (p - t) / n_out)
+                .collect();
+            let mut grad_shape = output.shape.clone();
+
+            for l in (0..n_layers).rev() {
+                let w_name = format!("{}_w{}", args.mlp, l);
+                let b_name = format!("{}_b{}", args.mlp, l);
+                let w = store.get(&w_name).unwrap().clone();
+                let prev_act = &activations[l];
+
+                let rows = grad_shape[0];
+
+                // Through tanh: grad *= (1 - activation²)
+                let act = &activations[l + 1];
+                let tanh_grad: Vec<f32> = grad.iter().zip(act.data.iter())
+                    .map(|(g, a)| g * (1.0 - a * a))
+                    .collect();
+
+                // Compute weight gradient: prev_act^T @ tanh_grad
+                let in_f = w.shape[0];
+                let out_f = w.shape[1];
+                let mut w_grad = vec![0.0f32; in_f * out_f];
+                for i in 0..in_f {
+                    for j in 0..out_f {
+                        let mut sum = 0.0;
+                        for s in 0..rows {
+                            sum += prev_act.data[s * in_f + i] * tanh_grad[s * out_f + j];
+                        }
+                        w_grad[i * out_f + j] = sum;
+                    }
+                }
+
+                // Compute bias gradient: sum over samples
+                let mut b_grad = vec![0.0f32; out_f];
+                for s in 0..rows {
+                    for j in 0..out_f {
+                        b_grad[j] += tanh_grad[s * out_f + j];
+                    }
+                }
+
+                // Compute input gradient for next layer: tanh_grad @ w^T
+                let mut input_grad = vec![0.0f32; rows * in_f];
+                for s in 0..rows {
+                    for i in 0..in_f {
+                        let mut sum = 0.0;
+                        for j in 0..out_f {
+                            sum += tanh_grad[s * out_f + j] * w.data[i * out_f + j];
+                        }
+                        input_grad[s * in_f + i] = sum;
+                    }
+                }
+
+                // SGD update
+                let w_tensor = store.get_mut(&w_name).unwrap();
+                for i in 0..w_tensor.data.len() {
+                    w_tensor.data[i] -= args.lr * w_grad[i];
+                }
+                w_tensor.grad = Some(w_grad);
+
+                let b_tensor = store.get_mut(&b_name).unwrap();
+                for i in 0..b_tensor.data.len() {
+                    b_tensor.data[i] -= args.lr * b_grad[i];
+                }
+                b_tensor.grad = Some(b_grad);
+
+                grad = input_grad;
+                grad_shape = vec![rows, in_f];
+            }
+
+            loss_history.push(loss);
+        }
+
+        // Sample loss history (at most 50 points)
+        let sampled: Vec<f32> = if loss_history.len() <= 50 {
+            loss_history.clone()
+        } else {
+            let step = loss_history.len() / 50;
+            loss_history.iter().step_by(step).copied().collect()
+        };
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json!({
+                "op": "train_mlp",
+                "mlp": args.mlp,
+                "epochs": args.epochs,
+                "initial_loss": loss_history.first().unwrap_or(&0.0),
+                "final_loss": loss_history.last().unwrap_or(&0.0),
+                "loss_history_sampled": sampled,
+                "lr": args.lr,
+            })).unwrap()
+        )]))
+    }
+
+    #[tool(description = "Evaluate an MLP on data without training. Returns predictions, loss, and accuracy.")]
+    async fn evaluate_mlp(
+        &self,
+        Parameters(args): Parameters<EvaluateMlpArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+
+        let inputs = match store.get(&args.inputs) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(
+                format!("Input tensor '{}' not found", args.inputs),
+            )])),
+        };
+
+        // Forward pass
+        let mut current = inputs.clone();
+        let mut l = 0;
+        while let Some(w) = store.get(&format!("{}_w{}", args.mlp, l)) {
+            let b = store.get(&format!("{}_b{}", args.mlp, l)).unwrap();
+            let rows = current.shape[0];
+            let cols = w.shape[1];
+            let inner = w.shape[0];
+            let mut result = vec![0.0f32; rows * cols];
+            for i in 0..rows {
+                for j in 0..cols {
+                    let mut sum = 0.0;
+                    for k in 0..inner {
+                        sum += current.data[i * inner + k] * w.data[k * cols + j];
+                    }
+                    result[i * cols + j] = (sum + b.data[j]).tanh();
+                }
+            }
+            current = Tensor::new(result, vec![rows, cols]);
+            l += 1;
+        }
+
+        let mut response = json!({
+            "op": "evaluate_mlp",
+            "mlp": args.mlp,
+            "predictions": {
+                "data": current.data,
+                "shape": current.shape,
+            },
+        });
+
+        if let Some(target_name) = &args.targets {
+            if let Some(targets) = store.get(target_name) {
+                let n = current.data.len() as f32;
+                let loss: f32 = current.data.iter().zip(targets.data.iter())
+                    .map(|(p, t)| (p - t).powi(2))
+                    .sum::<f32>() / n;
+
+                // Accuracy: round prediction to 0/1, compare to target
+                let correct: usize = current.data.iter().zip(targets.data.iter())
+                    .filter(|(p, t)| (if **p > 0.5 { 1.0 } else { 0.0 } - *t).abs() < 0.01)
+                    .count();
+                let accuracy = correct as f32 / current.data.len() as f32;
+
+                response["loss"] = json!(loss);
+                response["accuracy"] = json!(accuracy);
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&response).unwrap()
+        )]))
+    }
+
+    #[tool(description = "Run a single prediction through a trained MLP. Returns the output value.")]
+    async fn mlp_predict(
+        &self,
+        Parameters(args): Parameters<MlpPredictArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+
+        let mut current = args.input.clone();
+        let mut l = 0;
+        while let Some(w) = store.get(&format!("{}_w{}", args.mlp, l)) {
+            let b = store.get(&format!("{}_b{}", args.mlp, l)).unwrap();
+            let in_f = w.shape[0];
+            let out_f = w.shape[1];
+            let mut result = vec![0.0f32; out_f];
+            for j in 0..out_f {
+                let mut sum = 0.0;
+                for k in 0..in_f {
+                    sum += current[k] * w.data[k * out_f + j];
+                }
+                result[j] = (sum + b.data[j]).tanh();
+            }
+            current = result;
+            l += 1;
+        }
+
+        if l == 0 {
+            return Ok(CallToolResult::error(vec![Content::text(
+                format!("No MLP weights found with prefix '{}'", args.mlp),
+            )]));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json!({
+                "op": "mlp_predict",
+                "mlp": args.mlp,
+                "input": args.input,
+                "output": current,
+                "prediction": if current.len() == 1 {
+                    if current[0] > 0.5 { 1 } else { 0 }
+                } else { 0 },
+            })).unwrap()
+        )]))
     }
 
     // ── Autograd tools ──────────────────────────────────────────

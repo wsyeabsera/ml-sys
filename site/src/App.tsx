@@ -21,6 +21,8 @@ import Playground from "./pages/Playground";
 import Settings from "./pages/Settings";
 import ToolReference from "./pages/ToolReference";
 import Visualize from "./pages/Visualize";
+import ProjectAnd from "./pages/ProjectAnd";
+import ProjectXor from "./pages/ProjectXor";
 
 export default function App() {
   const location = useLocation();
@@ -55,6 +57,10 @@ export default function App() {
           <Route path="/ch/8" element={<Navigate to="/learn/6" replace />} />
           <Route path="/ch/9" element={<Navigate to="/learn/7" replace />} />
           <Route path="/ch/10" element={<Navigate to="/learn/8" replace />} />
+
+          {/* Projects */}
+          <Route path="/projects/and" element={<ProjectAnd />} />
+          <Route path="/projects/xor" element={<ProjectXor />} />
 
           {/* Tools */}
           <Route path="/playground" element={<Playground />} />

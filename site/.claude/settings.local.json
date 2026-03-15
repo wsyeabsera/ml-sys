@@ -26,7 +26,11 @@
       "mcp__chrome-devtools__list_console_messages",
       "mcp__chrome-devtools__evaluate_script",
       "mcp__chrome-devtools__fill",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "Bash(npx vitest:*)",
+      "Bash(mkdir:*)",
+      "Bash(grep:*)",
+      "Bash(for file:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

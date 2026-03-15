@@ -17,6 +17,9 @@ pub struct Tensor {
     /// advance 1 in dim 0 (row) → skip 3 elements,
     /// advance 1 in dim 1 (col) → skip 1 element.
     pub strides: Vec<usize>,
+    /// Optional gradient storage, filled during backward pass.
+    /// Used by training tools (sgd_step) to update weights.
+    pub grad: Option<Vec<f32>>,
 }
 
 impl Tensor {
@@ -41,6 +44,7 @@ impl Tensor {
             data,
             shape,
             strides,
+            grad: None,
         }
     }
 
@@ -117,6 +121,7 @@ impl Tensor {
             data: self.data.clone(),
             shape: new_shape,
             strides: new_strides,
+            grad: None,
         })
     }
 

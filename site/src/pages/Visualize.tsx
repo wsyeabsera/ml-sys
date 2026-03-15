@@ -10,6 +10,7 @@ import AutogradGraphViz from "../components/visualizer/AutogradGraphViz";
 import MLPLayerViz from "../components/visualizer/MLPLayerViz";
 import TensorExplorer from "../components/visualizer/TensorExplorer";
 import NeuronGraphViz from "../components/visualizer/NeuronGraphViz";
+import TrainingHistoryViz from "../components/visualizer/TrainingHistoryViz";
 
 export default function Visualize() {
   const [searchParams] = useSearchParams();
@@ -230,6 +231,13 @@ function VizRenderer({ output, input }: { output: StoredOutput; input: string })
       return (
         <div className="p-4 rounded-xl bg-[var(--color-surface-raised)] border border-[var(--color-surface-overlay)]">
           <MLPLayerViz data={result.data as never} />
+        </div>
+      );
+
+    case "training":
+      return (
+        <div className="p-4 rounded-xl bg-[var(--color-surface-raised)] border border-[var(--color-surface-overlay)]">
+          <TrainingHistoryViz data={result.data as never} />
         </div>
       );
 

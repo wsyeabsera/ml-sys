@@ -8,6 +8,8 @@ const RICH_VIZ_TYPES = new Set([
   "neuron",
   "attention",
   "mlp",
+  "training",
+  "evaluation",
 ]);
 
 const RICH_VIZ_OPS = new Set([
