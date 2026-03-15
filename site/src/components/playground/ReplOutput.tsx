@@ -1,8 +1,60 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { parseResult } from "../../lib/result-parser";
 import TensorViz from "./TensorViz";
 import AutogradViz from "./AutogradViz";
+
+const COLLAPSE_LINE_THRESHOLD = 8;
+
+function CollapsiblePre({
+  text,
+  className,
+  copyText,
+}: {
+  text: string;
+  className?: string;
+  copyText?: string;
+}) {
+  const lines = useMemo(() => text.split("\n"), [text]);
+  const shouldCollapse = lines.length > COLLAPSE_LINE_THRESHOLD;
+  const [expanded, setExpanded] = useState(false);
+
+  const displayText =
+    shouldCollapse && !expanded
+      ? lines.slice(0, 5).join("\n")
+      : text;
+
+  return (
+    <div className="relative group">
+      <pre className={`whitespace-pre-wrap text-xs p-3 rounded-lg ${className ?? ""}`}>
+        {displayText}
+        {shouldCollapse && !expanded && (
+          <>
+            {"\n"}
+            <button
+              onClick={() => setExpanded(true)}
+              className="text-[var(--color-accent-blue)] hover:underline font-sans"
+            >
+              ... {lines.length - 5} more lines — click to expand
+            </button>
+          </>
+        )}
+        {shouldCollapse && expanded && (
+          <>
+            {"\n"}
+            <button
+              onClick={() => setExpanded(false)}
+              className="text-[var(--color-accent-blue)] hover:underline font-sans"
+            >
+              collapse
+            </button>
+          </>
+        )}
+      </pre>
+      <CopyButton text={copyText ?? text} />
+    </div>
+  );
+}
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -39,9 +91,10 @@ interface ReplOutputProps {
   isError: boolean;
   outputId?: string | null;
   hasRichViz?: boolean;
+  onExecute?: (cmd: string) => void;
 }
 
-export default function ReplOutput({ output, isError, outputId, hasRichViz }: ReplOutputProps) {
+export default function ReplOutput({ output, isError, outputId, hasRichViz, onExecute }: ReplOutputProps) {
   const result = parseResult(output, isError);
 
   const vizLink = hasRichViz && outputId ? (
@@ -98,7 +151,17 @@ export default function ReplOutput({ output, isError, outputId, hasRichViz }: Re
           </div>
           {list.tensors.map((t) => (
             <div key={t.name} className="flex items-center gap-2 text-xs font-mono">
-              <span className="text-[var(--color-accent-blue)]">"{t.name}"</span>
+              {onExecute ? (
+                <button
+                  onClick={() => onExecute(`tensor_inspect("${t.name}")`)}
+                  className="text-[var(--color-accent-blue)] hover:underline cursor-pointer"
+                  title={`Inspect "${t.name}"`}
+                >
+                  "{t.name}"
+                </button>
+              ) : (
+                <span className="text-[var(--color-accent-blue)]">"{t.name}"</span>
+              )}
               <span className="text-[var(--color-text-muted)]">
                 [{t.shape.join(" × ")}]
               </span>
@@ -256,14 +319,18 @@ export default function ReplOutput({ output, isError, outputId, hasRichViz }: Re
     case "prediction": {
       const pred = result.data as { input: number[]; output: number[]; prediction: number };
       return (
-        <div className="bg-[var(--color-surface-raised)] rounded-lg p-3 text-xs font-mono">
-          <span className="text-[var(--color-text-muted)]">input</span>{" "}
-          <span className="text-[var(--color-accent-blue)]">[{pred.input.join(", ")}]</span>
-          <span className="text-[var(--color-text-muted)]"> → </span>
-          <span className="text-[var(--color-accent-emerald)] text-sm font-semibold">
-            {pred.output.map(v => v.toFixed(3)).join(", ")}
-          </span>
-          <span className="text-[var(--color-text-muted)]"> (prediction: {pred.prediction})</span>
+        <div>
+          <div className="bg-[var(--color-surface-raised)] rounded-lg p-3 space-y-1">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-1.5 py-0.5 rounded bg-[var(--color-accent-blue)]/20 text-[var(--color-accent-blue)] font-mono">
+                predict
+              </span>
+              <span className="text-[var(--color-text-muted)] font-mono">
+                [{pred.input.join(", ")}] → <span className="text-[var(--color-accent-emerald)] font-semibold">{pred.output.map(v => v.toFixed(3)).join(", ")}</span> (prediction: {pred.prediction})
+              </span>
+            </div>
+          </div>
+          {vizLink}
         </div>
       );
     }
@@ -288,26 +355,27 @@ export default function ReplOutput({ output, isError, outputId, hasRichViz }: Re
     }
 
     case "array":
-    case "object":
+    case "object": {
+      const jsonStr = JSON.stringify(result.data, null, 2);
       return (
-        <div className="relative group">
-          <pre className="whitespace-pre-wrap text-xs p-3 rounded-lg bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] font-mono">
-            {JSON.stringify(result.data, null, 2)}
-          </pre>
-          <CopyButton text={JSON.stringify(result.data, null, 2)} />
+        <div>
+          <CollapsiblePre
+            text={jsonStr}
+            className="bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] font-mono"
+            copyText={jsonStr}
+          />
           {vizLink}
         </div>
       );
+    }
 
     case "string":
     default:
       return (
-        <div className="relative group">
-          <pre className="whitespace-pre-wrap text-xs p-3 rounded-lg bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)]">
-            {output}
-          </pre>
-          <CopyButton text={output} />
-        </div>
+        <CollapsiblePre
+          text={output}
+          className="bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)]"
+        />
       );
   }
 }

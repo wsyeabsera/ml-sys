@@ -10,6 +10,7 @@ const RICH_VIZ_TYPES = new Set([
   "mlp",
   "training",
   "evaluation",
+  "prediction",
 ]);
 
 const RICH_VIZ_OPS = new Set([

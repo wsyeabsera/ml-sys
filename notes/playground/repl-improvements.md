@@ -1,6 +1,6 @@
 # REPL Improvements — Phased Plan
 
-Status: **Phase 1 + 2 done** (2026-03-15)
+Status: **All 4 phases done** (2026-03-15)
 
 ## The problem
 
@@ -74,7 +74,7 @@ The REPL works but is painful to code in. You have to memorize 28 tool signature
 
 ---
 
-## Phase 3: Better Empty State + Discoverability
+## Phase 3: Better Empty State + Discoverability ✓ DONE
 
 **Goal:** New users should see what's available and be able to start with one click.
 
@@ -103,7 +103,7 @@ The REPL works but is painful to code in. You have to memorize 28 tool signature
 
 ---
 
-## Phase 4: Quality of Life Polish
+## Phase 4: Quality of Life Polish ✓ DONE
 
 **Goal:** Small things that make the REPL feel professional.
 

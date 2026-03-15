@@ -22,6 +22,7 @@ export interface HistoryEntry {
   isError: boolean;
   hasRichViz: boolean;
   restored?: boolean;
+  durationMs?: number;
 }
 
 export function useRepl() {
@@ -114,6 +115,7 @@ export function useRepl() {
       setCommandHistory((prev) => [...prev, code]);
       setHistoryIndex(-1);
 
+      const startTime = performance.now();
       let output: string;
       let isError = false;
 
@@ -177,6 +179,8 @@ export function useRepl() {
       };
       storeOutput(stored);
 
+      const durationMs = Math.round(performance.now() - startTime);
+
       setHistory((prev) => [
         ...prev,
         {
@@ -186,6 +190,7 @@ export function useRepl() {
           outputId,
           isError,
           hasRichViz,
+          durationMs,
         },
       ]);
       setRunning(false);

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo } from "react";
+import { useCallback, useRef, useMemo, useState } from "react";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { keymap, EditorView } from "@codemirror/view";
@@ -50,6 +50,7 @@ export default function ReplInput({
 }: ReplInputProps) {
   const cmRef = useRef<ReactCodeMirrorRef>(null);
   const lastPrefillSeq = useRef(-1);
+  const [lineCount, setLineCount] = useState(1);
 
   // When prefill changes, set editor content and focus
   if (prefill && prefill.seq !== lastPrefillSeq.current) {
@@ -171,15 +172,23 @@ export default function ReplInput({
 
   return (
     <div className="border border-[var(--color-surface-overlay)] rounded-lg bg-[var(--color-surface-raised)] px-3 py-2 flex items-start gap-2">
-      <span className="text-[var(--color-accent-blue)] font-mono text-sm mt-0.5 select-none">
-        {">"}
-      </span>
+      <div className="flex flex-col items-center mt-0.5 select-none">
+        <span className="text-[var(--color-accent-blue)] font-mono text-sm">
+          {">"}
+        </span>
+        {lineCount > 1 && (
+          <span className="text-[9px] font-mono text-[var(--color-text-muted)] mt-0.5">
+            {lineCount}L
+          </span>
+        )}
+      </div>
       <div className="flex-1 min-w-0">
         <CodeMirror
           ref={cmRef}
           value=""
           theme="dark"
           extensions={extensions()}
+          onChange={(val) => setLineCount(val.split("\n").length)}
           placeholder={
             disabled
               ? "Bridge not connected..."
