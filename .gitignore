@@ -7,6 +7,9 @@ rs-tensor/model-files/**/*.gguf
 Cargo.lock
 *.rs.bk
 
+
+# SDK
+sdk/typescript/node_modules/
 # OS
 .DS_Store
 Thumbs.db
