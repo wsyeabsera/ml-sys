@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "rs-tensor"
+  ],
+  "enableAllProjectMcpServers": true
+}

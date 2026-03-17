@@ -61,7 +61,8 @@
       "Bash(ls -la /Users/yab/Projects/ml-sys/site/src/pages/*.tsx)",
       "mcp__rs-tensor__llama_load",
       "mcp__rs-tensor__llama_inspect",
-      "mcp__rs-tensor__llama_generate"
+      "mcp__rs-tensor__llama_generate",
+      "Bash(find /Users/yab/Projects/ml-sys/site/src -name *worker* -o -name *eval*)"
     ]
   },
   "enableAllProjectMcpServers": true,
