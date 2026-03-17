@@ -9,7 +9,7 @@ Cargo.lock
 
 
 # SDK
-sdk/typescript/node_modules/
+rs-tensor/sdk/typescript/node_modules/*
 # OS
 .DS_Store
 Thumbs.db
