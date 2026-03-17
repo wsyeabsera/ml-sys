@@ -1,9 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import type { StdioServerParameters } from "@modelcontextprotocol/sdk/client/stdio.js";
-import type {
-  TextContent,
-} from "@modelcontextprotocol/sdk/types.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import type {
@@ -68,18 +65,34 @@ export function defaultMcpStdioParams(rsTensorRoot?: string): StdioServerParamet
   };
 }
 
+/** Minimal MCP surface used by {@link RsTensorClient} (inject for unit tests). */
+export type RsTensorToolCaller = {
+  callTool(params: {
+    name: string;
+    arguments?: Record<string, unknown>;
+  }): Promise<{
+    content: Array<{ type: string; text?: string }>;
+    isError?: boolean;
+  }>;
+};
+
 export interface RsTensorClientOptions {
   /** If omitted, uses {@link defaultMcpStdioParams}. */
   transport?: StdioServerParameters;
+  /**
+   * When set, {@link RsTensorClient.connect} / {@link RsTensorClient.close} are dry-run
+   * and all tool calls go through this (no real MCP stdio process).
+   */
+  toolCaller?: RsTensorToolCaller;
 }
 
-function extractTextContent(
+export function extractTextContent(
   content: Array<{ type: string; text?: string }>,
 ): string {
   const parts: string[] = [];
   for (const block of content) {
     if (block.type === "text" && typeof block.text === "string") {
-      parts.push(block.text);
+      parts.push(block.text.trim());
     }
   }
   return parts.join("\n").trim();
@@ -88,15 +101,25 @@ function extractTextContent(
 export class RsTensorClient {
   private readonly mcp: Client;
   private transport: StdioClientTransport | null = null;
+  private readonly toolCaller: RsTensorToolCaller | null;
+  private dryConnected = false;
 
   constructor(options: RsTensorClientOptions = {}) {
     this.mcp = new Client({ name: "rs-tensor-mcp", version: "0.1.0" });
     this._stdioParams = options.transport ?? defaultMcpStdioParams();
+    this.toolCaller = options.toolCaller ?? null;
   }
 
   private readonly _stdioParams: StdioServerParameters;
 
   async connect(): Promise<void> {
+    if (this.toolCaller) {
+      if (this.dryConnected) {
+        throw new Error("RsTensorClient already connected");
+      }
+      this.dryConnected = true;
+      return;
+    }
     if (this.transport) {
       throw new Error("RsTensorClient already connected");
     }
@@ -105,18 +128,36 @@ export class RsTensorClient {
   }
 
   async close(): Promise<void> {
+    if (this.toolCaller) {
+      this.dryConnected = false;
+      return;
+    }
     await this.mcp.close();
     this.transport = null;
+  }
+
+  private async invokeTool(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<{
+    content: Array<{ type: string; text?: string }>;
+    isError?: boolean;
+  }> {
+    if (this.toolCaller) {
+      return this.toolCaller.callTool({ name, arguments: args });
+    }
+    return this.mcp.callTool({ name, arguments: args }) as Promise<{
+      content: Array<{ type: string; text?: string }>;
+      isError?: boolean;
+    }>;
   }
 
   private async callToolJson<T = JsonObject>(
     name: string,
     args: Record<string, unknown>,
   ): Promise<T> {
-    const result = await this.mcp.callTool({ name, arguments: args });
-    const text = extractTextContent(
-      result.content as TextContent[],
-    );
+    const result = await this.invokeTool(name, args);
+    const text = extractTextContent(result.content);
     if (result.isError) {
       throw new RsTensorMcpError(name, text || "(no message)");
     }

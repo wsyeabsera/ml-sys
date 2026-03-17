@@ -33,8 +33,12 @@ export interface InitMlpResult {
 
 export interface TrainMlpResult {
   op: "train_mlp";
+  mlp: string;
   epochs: number;
-  history: Array<{ epoch: number; loss: number }>;
+  initial_loss: number;
+  final_loss: number;
+  loss_history_sampled: number[];
+  lr: number;
 }
 
 export interface LayerDef {
