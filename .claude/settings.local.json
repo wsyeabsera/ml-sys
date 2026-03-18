@@ -62,7 +62,22 @@
       "mcp__rs-tensor__llama_load",
       "mcp__rs-tensor__llama_inspect",
       "mcp__rs-tensor__llama_generate",
-      "Bash(find /Users/yab/Projects/ml-sys/site/src -name *worker* -o -name *eval*)"
+      "Bash(find /Users/yab/Projects/ml-sys/site/src -name *worker* -o -name *eval*)",
+      "Bash(grep -l \"Learn\" /Users/yab/Projects/ml-sys/site/src/pages/Chapter*.tsx)",
+      "Bash(find /Users/yab/Projects/ml-sys/notes -type f -name *.md)",
+      "Bash(grep -r \"conv\\\\|CNN\\\\|pool\\\\|batch.*norm\" /Users/yab/Projects/ml-sys --include=*.md --include=*.rs)",
+      "Bash(done)",
+      "Bash(grep -h \"text-4xl font-bold\" /Users/yab/Projects/ml-sys/site/src/pages/Chapter*.tsx -A1)",
+      "Bash(grep -o '>.*<[^>]*$')",
+      "Bash(npm run:*)",
+      "mcp__rs-tensor__conv2d_forward",
+      "mcp__rs-tensor__max_pool2d",
+      "mcp__rs-tensor__batch_norm2d",
+      "mcp__rs-tensor__init_cnn",
+      "mcp__rs-tensor__flatten_tensor",
+      "mcp__rs-tensor__global_avg_pool",
+      "mcp__rs-tensor__cnn_forward",
+      "Bash(echo \"EXIT: $?\")"
     ]
   },
   "enableAllProjectMcpServers": true,
@@ -70,6 +85,7 @@
     "rs-tensor"
   ],
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true
+    "frontend-design@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true
   }
 }

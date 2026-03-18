@@ -67,7 +67,7 @@ function computeForward() {
 }
 
 function computeBackward() {
-  const { pre0, h, pre1, out, x } = computeForward();
+  const { h, out, x } = computeForward();
   const w0 = NETWORK.weights[0];
   const w1 = NETWORK.weights[1];
 
@@ -77,8 +77,6 @@ function computeBackward() {
 
   // Gradients for w1: dw1[j] = h[j] * dpre1
   const dw1 = [h[0] * dpre1, h[1] * dpre1, h[2] * dpre1];
-  // db1 = dpre1
-  const db1 = dpre1;
 
   // dh[j] = w1[j] * dpre1
   const dh = [w1[0] * dpre1, w1[1] * dpre1, w1[2] * dpre1];

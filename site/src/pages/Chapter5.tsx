@@ -2,7 +2,6 @@ import ClaudePrompts from "../components/ui/ClaudePrompts";
 import PageTransition from "../components/layout/PageTransition";
 import { motion } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
-import CodeBlock from "../components/ui/CodeBlock";
 import TryThis from "../components/ui/TryThis";
 import LearnNav from "../components/ui/LearnNav";
 import PredictExercise from "../components/ui/PredictExercise";

@@ -13,8 +13,8 @@ import {
   type EditorState,
   type Extension,
 } from "@codemirror/state";
-import { EditorView, Decoration, type DecorationSet, showTooltip, type Tooltip } from "@codemirror/view";
-import { TOOL_NAMES, TOOL_INFO } from "./mcp-shorthand";
+import { EditorView, showTooltip, type Tooltip } from "@codemirror/view";
+import { TOOL_INFO } from "./mcp-shorthand";
 
 // Re-import the schemas (they're not exported, so we reconstruct from TOOL_INFO keys + need param names)
 // We'll import TOOL_SCHEMAS via a getter

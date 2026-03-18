@@ -196,3 +196,100 @@ export interface LlamaGenerateArgs {
 }
 
 export type JsonObject = Record<string, unknown>;
+
+// --- CNN types ---
+
+export interface Conv2dArgs {
+  /** Name of input tensor in store — shape [N, C_in, H, W] */
+  input: string;
+  /** Name of kernel tensor in store — shape [C_out, C_in, kH, kW] */
+  kernel: string;
+  /** Optional bias tensor name — shape [C_out] */
+  bias?: string;
+  /** Stride for H and W (default 1) */
+  stride?: number;
+  /** Zero-padding for H and W (default 0) */
+  padding?: number;
+  result_name: string;
+}
+
+export interface MaxPool2dArgs {
+  input: string;
+  kernel_size: number;
+  stride?: number;
+  result_name: string;
+}
+
+export interface AvgPool2dArgs {
+  input: string;
+  kernel_size: number;
+  stride?: number;
+  result_name: string;
+}
+
+export interface BatchNorm2dArgs {
+  input: string;
+  /** Per-channel scale, length = C */
+  gamma: number[];
+  /** Per-channel shift, length = C */
+  beta: number[];
+  eps?: number;
+  result_name: string;
+}
+
+export interface FlattenArgs {
+  input: string;
+  result_name: string;
+}
+
+export interface GlobalAvgPoolArgs {
+  input: string;
+  result_name: string;
+}
+
+export interface CnnLayerSpec {
+  type: "conv2d" | "relu" | "max_pool2d" | "avg_pool2d" | "flatten" | "linear";
+  in_channels?: number;
+  out_channels?: number;
+  kernel_size?: number;
+  stride?: number;
+  padding?: number;
+  /** For linear layers: input features */
+  in?: number;
+  /** For linear layers: output features */
+  out?: number;
+}
+
+export interface InitCnnArgs {
+  layers: CnnLayerSpec[];
+  name?: string;
+}
+
+export interface InitCnnResult {
+  op: "init_cnn";
+  name: string;
+  layers: JsonObject[];
+  total_params: number;
+  weight_names: string[];
+}
+
+export interface CnnForwardArgs {
+  model: string;
+  input: string;
+}
+
+export interface FeatureMapInfo {
+  layer: string;
+  shape: number[];
+  sample_values?: number[];
+  output?: number[];
+}
+
+export interface CnnForwardResult {
+  op: "cnn_forward";
+  model: string;
+  input_shape: number[];
+  output_shape: number[];
+  output: number[];
+  feature_maps: FeatureMapInfo[];
+}

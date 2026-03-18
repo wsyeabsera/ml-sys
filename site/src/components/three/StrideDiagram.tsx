@@ -1,7 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text, RoundedBox } from "@react-three/drei";
 import { useMemo, useState } from "react";
-import { computeStrides, flatToMultiIndex, shapeSize } from "../../lib/tensor-math";
+import { computeStrides, shapeSize } from "../../lib/tensor-math";
 
 function Cell({
   position,

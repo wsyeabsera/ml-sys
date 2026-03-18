@@ -17,7 +17,6 @@ export default function NeuronGraphViz({ data }: { data: NeuronData }) {
   const nodeH = 44;
   const smallW = 70;
   const smallH = 28;
-  const colGap = 150;
   const rowGap = 100; // more vertical space between input rows
   const startX = 20;
   const startY = 20;

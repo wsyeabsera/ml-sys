@@ -116,7 +116,6 @@ export default function SimpleGraph() {
     setExplanation("Click 'Step Forward' to begin the forward pass.");
   }, []);
 
-  const showValues = phase === "forward" || phase === "backward" || phase === "done";
   const showGrads = phase === "backward" || phase === "done";
 
   const nodeColors = {

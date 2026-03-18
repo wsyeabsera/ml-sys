@@ -79,7 +79,6 @@ function MatrixDisplay({
   label,
   rowLabels,
   colLabels,
-  highlight,
   isHeatmap,
 }: {
   data: number[][];

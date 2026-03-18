@@ -1,4 +1,5 @@
 pub mod autograd_ops;
+pub mod cnn_ops;
 pub mod gguf_ops;
 pub mod llama_ops;
 pub mod project;
@@ -18,6 +19,7 @@ use serde_json::json;
 use super::TensorServer;
 use crate::attention::scaled_dot_product_attention;
 use crate::autograd::Value;
+use crate::cnn;
 use crate::gguf::GgufFile;
 use crate::llama::{self, LlamaModel};
 use crate::mlp::{Layer, MLP};
@@ -25,6 +27,10 @@ use crate::tensor::Tensor;
 use crate::tensor_value::TensorValue;
 use autograd_ops::{
     AttentionArgs, AutogradExprArgs, AutogradNeuronArgs, AutogradTensorLayerArgs, MlpForwardArgs,
+};
+use cnn_ops::{
+    AvgPool2dArgs, BatchNorm2dArgs, CnnForwardArgs, Conv2dArgs, FlattenArgs,
+    GlobalAvgPoolArgs, InitCnnArgs, MaxPool2dArgs,
 };
 use gguf_ops::{GgufInspectArgs, GgufLoadTensorArgs};
 use llama_ops::{LlamaLoadArgs, LlamaGenerateArgs};
@@ -1698,6 +1704,448 @@ impl TensorServer {
 
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&result).unwrap(),
+        )]))
+    }
+
+    // ── CNN tools ────────────────────────────────────────────────
+
+    #[tool(description = "2D convolution: slide kernels over an image to produce feature maps. Input shape [N,C_in,H,W], kernel shape [C_out,C_in,kH,kW]. Returns output shape [N,C_out,out_H,out_W].")]
+    async fn conv2d_forward(
+        &self,
+        Parameters(args): Parameters<Conv2dArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+
+        let input = match store.get(&args.input) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(format!("Tensor '{}' not found", args.input))])),
+        };
+        let kernel = match store.get(&args.kernel) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(format!("Tensor '{}' not found", args.kernel))])),
+        };
+        let bias = match &args.bias {
+            Some(name) => match store.get(name) {
+                Some(t) => Some(t.clone()),
+                None => return Ok(CallToolResult::error(vec![Content::text(format!("Bias tensor '{}' not found", name))])),
+            },
+            None => None,
+        };
+        drop(store);
+
+        let stride  = args.stride.unwrap_or(1);
+        let padding = args.padding.unwrap_or(0);
+
+        match cnn::conv2d(&input, &kernel, bias.as_ref(), stride, padding) {
+            Ok(result) => {
+                let response = json!({
+                    "op": "conv2d_forward",
+                    "input_shape": input.shape,
+                    "kernel_shape": kernel.shape,
+                    "stride": stride,
+                    "padding": padding,
+                    "result_name": args.result_name,
+                    "output_shape": result.shape,
+                    "output_data": result.data,
+                });
+                self.tensors.lock().await.insert(args.result_name, result);
+                Ok(CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&response).unwrap())]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "2D max pooling: take the maximum value in each kernel_size×kernel_size window. Reduces spatial size. Input [N,C,H,W] → output [N,C,out_H,out_W]. Also returns argmax indices for the backward pass.")]
+    async fn max_pool2d(
+        &self,
+        Parameters(args): Parameters<MaxPool2dArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        let input = match store.get(&args.input) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(format!("Tensor '{}' not found", args.input))])),
+        };
+        drop(store);
+
+        let stride = args.stride.unwrap_or(args.kernel_size);
+
+        match cnn::max_pool2d(&input, args.kernel_size, stride) {
+            Ok(res) => {
+                let response = json!({
+                    "op": "max_pool2d",
+                    "input_shape": input.shape,
+                    "kernel_size": args.kernel_size,
+                    "stride": stride,
+                    "result_name": args.result_name,
+                    "output_shape": res.output.shape,
+                    "output_data": res.output.data,
+                    "argmax": res.argmax,
+                });
+                self.tensors.lock().await.insert(args.result_name, res.output);
+                Ok(CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&response).unwrap())]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "2D average pooling: take the mean value in each kernel_size×kernel_size window. Input [N,C,H,W] → output [N,C,out_H,out_W].")]
+    async fn avg_pool2d(
+        &self,
+        Parameters(args): Parameters<AvgPool2dArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        let input = match store.get(&args.input) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(format!("Tensor '{}' not found", args.input))])),
+        };
+        drop(store);
+
+        let stride = args.stride.unwrap_or(args.kernel_size);
+
+        match cnn::avg_pool2d(&input, args.kernel_size, stride) {
+            Ok(result) => {
+                let response = json!({
+                    "op": "avg_pool2d",
+                    "input_shape": input.shape,
+                    "kernel_size": args.kernel_size,
+                    "stride": stride,
+                    "result_name": args.result_name,
+                    "output_shape": result.shape,
+                    "output_data": result.data,
+                });
+                self.tensors.lock().await.insert(args.result_name, result);
+                Ok(CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&response).unwrap())]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "Batch normalization for conv layers: normalize each channel across batch+spatial dims, then apply learned gamma (scale) and beta (shift). Input [N,C,H,W], gamma/beta length=C.")]
+    async fn batch_norm2d(
+        &self,
+        Parameters(args): Parameters<BatchNorm2dArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        let input = match store.get(&args.input) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(format!("Tensor '{}' not found", args.input))])),
+        };
+        drop(store);
+
+        let eps = args.eps.unwrap_or(1e-5);
+
+        match cnn::batch_norm2d(&input, &args.gamma, &args.beta, eps) {
+            Ok(result) => {
+                let response = json!({
+                    "op": "batch_norm2d",
+                    "input_shape": input.shape,
+                    "gamma": args.gamma,
+                    "beta": args.beta,
+                    "eps": eps,
+                    "result_name": args.result_name,
+                    "output_shape": result.shape,
+                    "output_data": result.data,
+                });
+                self.tensors.lock().await.insert(args.result_name, result);
+                Ok(CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&response).unwrap())]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "Flatten a 4D tensor [N,C,H,W] to [N, C*H*W]. Bridges conv layers to fully-connected layers.")]
+    async fn flatten_tensor(
+        &self,
+        Parameters(args): Parameters<FlattenArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        let input = match store.get(&args.input) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(format!("Tensor '{}' not found", args.input))])),
+        };
+        drop(store);
+
+        if input.shape.len() < 2 {
+            return Ok(CallToolResult::error(vec![Content::text(
+                format!("flatten_tensor: need at least 2D tensor, got {:?}", input.shape)
+            )]));
+        }
+
+        let n = input.shape[0];
+        let rest: usize = input.shape[1..].iter().product();
+        match input.reshape(vec![n, rest]) {
+            Some(result) => {
+                let response = json!({
+                    "op": "flatten_tensor",
+                    "input_shape": input.shape,
+                    "result_name": args.result_name,
+                    "output_shape": result.shape,
+                    "output_data": result.data,
+                });
+                self.tensors.lock().await.insert(args.result_name, result);
+                Ok(CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&response).unwrap())]))
+            }
+            None => Ok(CallToolResult::error(vec![Content::text("flatten_tensor: reshape failed".to_string())])),
+        }
+    }
+
+    #[tool(description = "Global average pooling: collapse H and W by averaging, output shape [N, C]. Used before the final classifier to make the model size-independent.")]
+    async fn global_avg_pool(
+        &self,
+        Parameters(args): Parameters<GlobalAvgPoolArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let store = self.tensors.lock().await;
+        let input = match store.get(&args.input) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(format!("Tensor '{}' not found", args.input))])),
+        };
+        drop(store);
+
+        match cnn::global_avg_pool2d(&input) {
+            Ok(result) => {
+                let response = json!({
+                    "op": "global_avg_pool",
+                    "input_shape": input.shape,
+                    "result_name": args.result_name,
+                    "output_shape": result.shape,
+                    "output_data": result.data,
+                });
+                self.tensors.lock().await.insert(args.result_name, result);
+                Ok(CallToolResult::success(vec![Content::text(serde_json::to_string_pretty(&response).unwrap())]))
+            }
+            Err(e) => Ok(CallToolResult::error(vec![Content::text(e)])),
+        }
+    }
+
+    #[tool(description = "Initialize a CNN model from a layer spec. Supported layer types: 'conv2d' (in_channels, out_channels, kernel_size, stride?, padding?), 'relu', 'max_pool2d' (kernel_size, stride?), 'avg_pool2d' (kernel_size, stride?), 'flatten', 'linear' (in, out). Stores random weights in the tensor store.")]
+    async fn init_cnn(
+        &self,
+        Parameters(args): Parameters<InitCnnArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let name = args.name.clone().unwrap_or_else(|| "cnn".to_string());
+        let mut store = self.tensors.lock().await;
+        let mut weight_names: Vec<String> = Vec::new();
+        let mut layer_info: Vec<serde_json::Value> = Vec::new();
+        let mut total_params = 0usize;
+        let mut param_idx = 0usize;
+
+        // Simple LCG for reproducible random init (same approach as init_mlp)
+        let mut rng_state: u64 = 42;
+        let mut next_f32 = move || -> f32 {
+            rng_state = rng_state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            let bits = (rng_state >> 33) as u32;
+            let f = f32::from_bits((bits >> 9) | 0x3f800000) - 1.0;
+            f * 2.0 - 1.0 // [-1, 1]
+        };
+
+        for layer in &args.layers {
+            match layer.layer_type.as_str() {
+                "conv2d" => {
+                    let c_in = match layer.in_channels {
+                        Some(v) => v,
+                        None => return Ok(CallToolResult::error(vec![Content::text("conv2d layer requires 'in_channels'")])),
+                    };
+                    let c_out = match layer.out_channels {
+                        Some(v) => v,
+                        None => return Ok(CallToolResult::error(vec![Content::text("conv2d layer requires 'out_channels'")])),
+                    };
+                    let k = match layer.kernel_size {
+                        Some(v) => v,
+                        None => return Ok(CallToolResult::error(vec![Content::text("conv2d layer requires 'kernel_size'")])),
+                    };
+
+                    // He init: scale = sqrt(2 / fan_in) where fan_in = C_in * kH * kW
+                    let fan_in = c_in * k * k;
+                    let scale = (2.0 / fan_in as f32).sqrt();
+
+                    let w_name = format!("{}_conv{}_weight", name, param_idx);
+                    let b_name = format!("{}_conv{}_bias", name, param_idx);
+
+                    let w_data: Vec<f32> = (0..c_out * c_in * k * k).map(|_| next_f32() * scale).collect();
+                    let b_data: Vec<f32> = vec![0.0; c_out];
+
+                    total_params += w_data.len() + b_data.len();
+                    store.insert(w_name.clone(), Tensor::new(w_data, vec![c_out, c_in, k, k]));
+                    store.insert(b_name.clone(), Tensor::new(b_data, vec![c_out]));
+                    weight_names.extend([w_name.clone(), b_name.clone()]);
+
+                    layer_info.push(json!({
+                        "type": "conv2d",
+                        "in_channels": c_in, "out_channels": c_out, "kernel_size": k,
+                        "stride": layer.stride.unwrap_or(1),
+                        "padding": layer.padding.unwrap_or(0),
+                        "weight_name": w_name, "bias_name": b_name,
+                    }));
+                    param_idx += 1;
+                }
+                "linear" => {
+                    let in_f = match layer.in_features {
+                        Some(v) => v,
+                        None => return Ok(CallToolResult::error(vec![Content::text("linear layer requires 'in' (in_features)")])),
+                    };
+                    let out_f = match layer.out_features {
+                        Some(v) => v,
+                        None => return Ok(CallToolResult::error(vec![Content::text("linear layer requires 'out' (out_features)")])),
+                    };
+                    let limit = (6.0 / (in_f + out_f) as f32).sqrt();
+
+                    let w_name = format!("{}_fc{}_weight", name, param_idx);
+                    let b_name = format!("{}_fc{}_bias", name, param_idx);
+
+                    let w_data: Vec<f32> = (0..in_f * out_f).map(|_| next_f32() * limit).collect();
+                    let b_data = vec![0.0f32; out_f];
+
+                    total_params += w_data.len() + b_data.len();
+                    store.insert(w_name.clone(), Tensor::new(w_data, vec![in_f, out_f]));
+                    store.insert(b_name.clone(), Tensor::new(b_data, vec![out_f]));
+                    weight_names.extend([w_name.clone(), b_name.clone()]);
+
+                    layer_info.push(json!({
+                        "type": "linear",
+                        "in_features": in_f, "out_features": out_f,
+                        "weight_name": w_name, "bias_name": b_name,
+                    }));
+                    param_idx += 1;
+                }
+                t @ ("relu" | "max_pool2d" | "avg_pool2d" | "flatten") => {
+                    layer_info.push(json!({
+                        "type": t,
+                        "kernel_size": layer.kernel_size,
+                        "stride": layer.stride,
+                    }));
+                }
+                other => {
+                    return Ok(CallToolResult::error(vec![Content::text(format!(
+                        "Unknown layer type '{}'. Use: conv2d, relu, max_pool2d, avg_pool2d, flatten, linear", other
+                    ))]));
+                }
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json!({
+                "op": "init_cnn",
+                "name": name,
+                "layers": layer_info,
+                "total_params": total_params,
+                "weight_names": weight_names,
+            })).unwrap()
+        )]))
+    }
+
+    #[tool(description = "Run a forward pass through an initialized CNN. Executes conv2d → relu → pool → flatten → linear layers in order, returning output and intermediate feature maps for each layer.")]
+    async fn cnn_forward(
+        &self,
+        Parameters(args): Parameters<CnnForwardArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::cnn::{conv2d, max_pool2d, relu};
+
+        let store = self.tensors.lock().await;
+
+        // Collect model layer specs from the store metadata (re-derive from weight names)
+        // We'll walk all tensors with the model prefix to determine layer order.
+        // Strategy: look for weight tensors named {model}_conv{i}_weight and {model}_fc{i}_weight
+        // in order of i to reconstruct the forward pass.
+
+        let input = match store.get(&args.input) {
+            Some(t) => t.clone(),
+            None => return Ok(CallToolResult::error(vec![Content::text(format!("Tensor '{}' not found", args.input))])),
+        };
+
+        // We need the original layer specs from init_cnn, but we didn't store them.
+        // Instead, detect layers by scanning for weight tensors.
+        // Walk param_idx 0,1,2,... collecting layers until none found.
+        let mut conv_layers: Vec<(usize, Tensor, Tensor)> = Vec::new(); // (idx, weight, bias)
+        let mut fc_layers: Vec<(usize, Tensor, Tensor)>   = Vec::new();
+
+        for idx in 0..20 {
+            let conv_w_name = format!("{}_conv{}_weight", args.model, idx);
+            let fc_w_name   = format!("{}_fc{}_weight",   args.model, idx);
+            if let (Some(w), Some(b)) = (store.get(&conv_w_name), store.get(&format!("{}_conv{}_bias", args.model, idx))) {
+                conv_layers.push((idx, w.clone(), b.clone()));
+            }
+            if let (Some(w), Some(b)) = (store.get(&fc_w_name), store.get(&format!("{}_fc{}_bias", args.model, idx))) {
+                fc_layers.push((idx, w.clone(), b.clone()));
+            }
+        }
+        drop(store);
+
+        let mut current = input.clone();
+        let mut feature_maps: Vec<serde_json::Value> = Vec::new();
+
+        // Apply conv layers → relu
+        for (idx, w, b) in &conv_layers {
+            let stride  = 1usize;
+            let padding = 0usize;
+            current = match conv2d(&current, w, Some(b), stride, padding) {
+                Ok(t) => t,
+                Err(e) => return Ok(CallToolResult::error(vec![Content::text(format!("conv layer {}: {}", idx, e))])),
+            };
+            current = relu(&current);
+            feature_maps.push(json!({
+                "layer": format!("conv{}_relu", idx),
+                "shape": current.shape,
+                "sample_values": &current.data[..current.data.len().min(8)],
+            }));
+
+            // Apply 2×2 max pool after each conv (if spatial dims allow)
+            if current.shape.len() == 4 && current.shape[2] >= 2 && current.shape[3] >= 2 {
+                current = match max_pool2d(&current, 2, 2) {
+                    Ok(r) => r.output,
+                    Err(e) => return Ok(CallToolResult::error(vec![Content::text(format!("pool after conv {}: {}", idx, e))])),
+                };
+                feature_maps.push(json!({
+                    "layer": format!("max_pool_{}", idx),
+                    "shape": current.shape,
+                    "sample_values": &current.data[..current.data.len().min(8)],
+                }));
+            }
+        }
+
+        // Flatten [N, C, H, W] → [N, C*H*W]
+        if current.shape.len() == 4 {
+            let n = current.shape[0];
+            let rest: usize = current.shape[1..].iter().product();
+            current = match current.reshape(vec![n, rest]) {
+                Some(t) => t,
+                None => return Ok(CallToolResult::error(vec![Content::text("cnn_forward: flatten reshape failed".to_string())])),
+            };
+            feature_maps.push(json!({"layer": "flatten", "shape": current.shape}));
+        }
+
+        // Apply fc layers with tanh
+        for (idx, w, b) in &fc_layers {
+            let rows  = current.shape[0];
+            let in_f  = w.shape[0];
+            let out_f = w.shape[1];
+            if current.shape[1] != in_f {
+                return Ok(CallToolResult::error(vec![Content::text(format!(
+                    "fc layer {}: input features {} != weight in_features {}", idx, current.shape[1], in_f
+                ))]));
+            }
+            let mut result = vec![0.0f32; rows * out_f];
+            for i in 0..rows {
+                for j in 0..out_f {
+                    let mut sum = b.data[j];
+                    for k in 0..in_f {
+                        sum += current.data[i * in_f + k] * w.data[k * out_f + j];
+                    }
+                    result[i * out_f + j] = sum.tanh();
+                }
+            }
+            current = Tensor::new(result, vec![rows, out_f]);
+            feature_maps.push(json!({"layer": format!("fc{}_tanh", idx), "shape": current.shape, "output": current.data}));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&json!({
+                "op": "cnn_forward",
+                "model": args.model,
+                "input_shape": input.shape,
+                "output_shape": current.shape,
+                "output": current.data,
+                "feature_maps": feature_maps,
+            })).unwrap()
         )]))
     }
 }

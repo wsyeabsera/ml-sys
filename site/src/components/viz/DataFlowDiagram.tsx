@@ -23,11 +23,6 @@ export default function DataFlowDiagram() {
         {arrows.map((arrow, i) => {
           const from = nodes.find((n) => n.id === arrow.from)!;
           const to = nodes.find((n) => n.id === arrow.to)!;
-          const x1 = from.x + 60;
-          const y1 = from.y;
-          const x2 = to.x - 60;
-          const y2 = to.y;
-
           return (
             <motion.g key={i}>
               <motion.line

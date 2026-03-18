@@ -8,18 +8,28 @@ import type {
   AutogradExprArgs,
   AutogradNeuronArgs,
   AutogradNeuronTensorArgs,
+  AvgPool2dArgs,
+  BatchNorm2dArgs,
   CargoExecArgs,
+  CnnForwardArgs,
+  CnnForwardResult,
+  Conv2dArgs,
   CreateDatasetArgs,
   CreateDatasetResult,
   EvaluateMlpArgs,
+  FlattenArgs,
   GgufInspectArgs,
   GgufLoadTensorArgs,
+  GlobalAvgPoolArgs,
+  InitCnnArgs,
+  InitCnnResult,
   InitMlpArgs,
   InitMlpResult,
   JsonObject,
   LayerDef,
   LlamaGenerateArgs,
   LlamaLoadArgs,
+  MaxPool2dArgs,
   MlpForwardArgs,
   MlpPredictArgs,
   MseLossArgs,
@@ -324,6 +334,40 @@ export class RsTensorClient {
 
   llamaInspect(): Promise<JsonObject> {
     return this.callToolJson("llama_inspect", {});
+  }
+
+  // --- CNN ---
+
+  conv2dForward(args: Conv2dArgs): Promise<TensorOpResult> {
+    return this.callToolJson("conv2d_forward", args as unknown as Record<string, unknown>);
+  }
+
+  maxPool2d(args: MaxPool2dArgs): Promise<TensorOpResult> {
+    return this.callToolJson("max_pool2d", args as unknown as Record<string, unknown>);
+  }
+
+  avgPool2d(args: AvgPool2dArgs): Promise<TensorOpResult> {
+    return this.callToolJson("avg_pool2d", args as unknown as Record<string, unknown>);
+  }
+
+  batchNorm2d(args: BatchNorm2dArgs): Promise<TensorOpResult> {
+    return this.callToolJson("batch_norm2d", args as unknown as Record<string, unknown>);
+  }
+
+  flattenTensor(args: FlattenArgs): Promise<TensorOpResult> {
+    return this.callToolJson("flatten_tensor", args as unknown as Record<string, unknown>);
+  }
+
+  globalAvgPool(args: GlobalAvgPoolArgs): Promise<TensorOpResult> {
+    return this.callToolJson("global_avg_pool", args as unknown as Record<string, unknown>);
+  }
+
+  initCnn(args: InitCnnArgs): Promise<InitCnnResult> {
+    return this.callToolJson("init_cnn", args as unknown as Record<string, unknown>);
+  }
+
+  cnnForward(args: CnnForwardArgs): Promise<CnnForwardResult> {
+    return this.callToolJson("cnn_forward", args as unknown as Record<string, unknown>);
   }
 }
 

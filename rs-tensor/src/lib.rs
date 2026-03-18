@@ -1,5 +1,6 @@
 pub mod attention;
 pub mod autograd;
+pub mod cnn;
 pub mod gguf;
 pub mod llama;
 pub mod mcp;

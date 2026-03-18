@@ -1,11 +1,174 @@
+import { useState } from "react";
 import ClaudePrompts from "../components/ui/ClaudePrompts";
 import PageTransition from "../components/layout/PageTransition";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import InfoCard from "../components/ui/InfoCard";
 import CodeBlock from "../components/ui/CodeBlock";
 import LearnNav from "../components/ui/LearnNav";
 import PredictExercise from "../components/ui/PredictExercise";
 import RopeViz from "../components/viz/RopeViz";
+import TryThis from "../components/ui/TryThis";
+
+// ============================================================
+// TransformerBlockFlow — animated stepper through one block
+// ============================================================
+const BLOCK_STEPS = [
+  {
+    id: "input",
+    label: "Input x",
+    shape: "[seq, d_model]  e.g. [1, 2048]",
+    desc: "A token has been looked up from the embedding table. It's a vector of size d_model (2048 for TinyLlama). This is x.",
+  },
+  {
+    id: "norm1",
+    label: "RMSNorm",
+    shape: "[1, 2048]  (same shape)",
+    desc: "Normalize x so the values don't explode. RMSNorm divides by the root-mean-square — no mean subtraction, no bias. Shape unchanged.",
+  },
+  {
+    id: "qkv",
+    label: "Q / K / V projections",
+    shape: "Q: [1, n_heads, head_dim]  K: [1, n_kv, head_dim]  V: same",
+    desc: "Three linear projections produce queries, keys, and values. For TinyLlama: 32 heads, 64-dim each. RoPE is applied to Q and K before attention.",
+  },
+  {
+    id: "attn",
+    label: "Attention",
+    shape: "[1, n_heads, head_dim] → [1, d_model]",
+    desc: "softmax(QKᵀ / √head_dim) · V. Each head attends over all past tokens in the KV cache. Heads are concatenated and projected back to d_model.",
+  },
+  {
+    id: "res1",
+    label: "+ x  (residual)",
+    shape: "[1, 2048]",
+    desc: "Add the original x back in. This is the residual connection. Gradients flow back through this path unchanged — crucial for training deep models.",
+  },
+  {
+    id: "norm2",
+    label: "RMSNorm",
+    shape: "[1, 2048]  (same shape)",
+    desc: "Normalize again before the feedforward network. Pre-norm stabilizes training — the FFN always sees a well-scaled input.",
+  },
+  {
+    id: "ffn",
+    label: "SwiGLU FFN",
+    shape: "[1, 2048] → [1, 5632] → [1, 2048]",
+    desc: "FFN(x) = W_down @ (silu(x @ W_gate) * (x @ W_up)). Expands to ~2.75× d_model, then projects back. The gate selectively amplifies useful features.",
+  },
+  {
+    id: "res2",
+    label: "+ x  (residual)",
+    shape: "[1, 2048]",
+    desc: "Add x again. Output of this block is the same shape as input — ready to be fed into the next block. Repeat 22× (TinyLlama) or 80× (LLaMA 70B).",
+  },
+];
+
+function TransformerBlockFlow() {
+  const [step, setStep] = useState(0);
+
+  return (
+    <div className="rounded-xl border border-[var(--color-surface-overlay)] bg-[var(--color-surface-raised)] p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+          One Token Through a Transformer Block
+        </h3>
+        <span className="text-xs font-mono text-[var(--color-text-tertiary)]">
+          Step {step + 1} / {BLOCK_STEPS.length}
+        </span>
+      </div>
+
+      {/* Step boxes */}
+      <div className="flex flex-col items-center gap-1">
+        {BLOCK_STEPS.map((s, i) => {
+          const isActive = i === step;
+          const isPast = i < step;
+          return (
+            <div key={s.id} className="flex flex-col items-center w-full max-w-sm">
+              <motion.div
+                animate={{
+                  backgroundColor: isActive
+                    ? "rgba(59,130,246,0.18)"
+                    : isPast
+                    ? "rgba(16,185,129,0.08)"
+                    : "rgba(0,0,0,0)",
+                  borderColor: isActive
+                    ? "rgba(59,130,246,0.6)"
+                    : isPast
+                    ? "rgba(16,185,129,0.35)"
+                    : "rgba(255,255,255,0.08)",
+                }}
+                transition={{ duration: 0.25 }}
+                className="w-full rounded-lg border px-3 py-2 text-center cursor-pointer select-none"
+                onClick={() => setStep(i)}
+              >
+                <span
+                  className="text-xs font-mono font-semibold"
+                  style={{
+                    color: isActive
+                      ? "var(--color-accent-blue)"
+                      : isPast
+                      ? "var(--color-accent-emerald)"
+                      : "var(--color-text-tertiary)",
+                  }}
+                >
+                  {s.label}
+                </span>
+              </motion.div>
+              {i < BLOCK_STEPS.length - 1 && (
+                <div
+                  className="w-px h-3 mt-0.5"
+                  style={{
+                    backgroundColor:
+                      i < step
+                        ? "rgba(16,185,129,0.4)"
+                        : "rgba(255,255,255,0.08)",
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Active step detail */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.2 }}
+          className="rounded-lg bg-[var(--color-surface-base)] border border-[var(--color-accent-blue)]/20 p-4 space-y-2"
+        >
+          <p className="text-xs font-mono text-[var(--color-accent-blue)]">
+            {BLOCK_STEPS[step].shape}
+          </p>
+          <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+            {BLOCK_STEPS[step].desc}
+          </p>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Controls */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          disabled={step === 0}
+          className="flex-1 px-3 py-1.5 rounded-lg text-xs font-mono border border-[var(--color-surface-overlay)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent-blue)]/40 disabled:opacity-30 transition-colors"
+        >
+          ← Prev
+        </button>
+        <button
+          onClick={() => setStep((s) => Math.min(BLOCK_STEPS.length - 1, s + 1))}
+          disabled={step === BLOCK_STEPS.length - 1}
+          className="flex-1 px-3 py-1.5 rounded-lg text-xs font-mono bg-[var(--color-accent-blue)]/10 border border-[var(--color-accent-blue)]/30 text-[var(--color-accent-blue)] hover:bg-[var(--color-accent-blue)]/20 disabled:opacity-30 transition-colors"
+        >
+          Next Step →
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Chapter9() {
   return (
@@ -109,17 +272,110 @@ export default function Chapter9() {
           explanation="RMSNorm normalizes the vector so its root-mean-square is 1. It's simpler than LayerNorm because it skips the mean subtraction — just divide by rms. The weight vector then rescales each dimension independently."
         />
 
-        <InfoCard title="Pre-norm vs post-norm" accent="blue">
-          <div className="space-y-2">
+        {/* Worked example with real numbers */}
+        <div className="rounded-xl border border-[var(--color-surface-overlay)] bg-[var(--color-surface-raised)] p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+            Worked Example: x = [2, -1, 3]
+          </h3>
+          <div className="space-y-2 text-sm font-mono text-[var(--color-text-secondary)]">
             <p>
-              The original transformer normalized <em>after</em> attention and
-              FFN. LLaMA normalizes <em>before</em>. Why? With pre-norm, the
-              residual connection adds unnormalized values — the raw signal
-              flows through without being squashed at every step. This makes
-              training more stable, especially for deep models.
+              <span className="text-[var(--color-text-tertiary)]">step 1 — sum of squares:</span>
+              {"  "}2² + (-1)² + 3² = 4 + 1 + 9 = 14
+            </p>
+            <p>
+              <span className="text-[var(--color-text-tertiary)]">step 2 — mean of squares:</span>
+              {"  "}14 / 3 ≈ 4.667
+            </p>
+            <p>
+              <span className="text-[var(--color-text-tertiary)]">step 3 — rms:</span>
+              {"             "}√4.667 ≈ 2.160
+            </p>
+            <p>
+              <span className="text-[var(--color-text-tertiary)]">step 4 — normalize:</span>
+              {"         "}[2/2.16, -1/2.16, 3/2.16] = [0.93, -0.46, 1.39]
+            </p>
+            <p>
+              <span className="text-[var(--color-text-tertiary)]">step 5 — apply weight [1,1,1]:</span>
+              {"  "}[0.93, -0.46, 1.39]  ← unchanged (identity weights)
             </p>
           </div>
-        </InfoCard>
+          <p className="text-xs text-[var(--color-text-tertiary)]">
+            In practice, learned weights let each dimension scale independently after normalization.
+            Setting all weights to 1 is the neutral baseline the model trains away from.
+          </p>
+        </div>
+
+        <TryThis
+          label="Compute one RMSNorm step manually"
+          commands={[
+            'autograd_expr {"expr": "sqrt((4 + 1 + 9) / 3)", "description": "rms([2,-1,3])"}',
+            'autograd_expr {"expr": "2 / 2.16", "description": "normalize first element"}',
+            'autograd_expr {"expr": "-1 / 2.16", "description": "normalize second element"}',
+            'autograd_expr {"expr": "3 / 2.16", "description": "normalize third element"}',
+          ]}
+        />
+
+        {/* ============================================================ */}
+        {/* SECTION: Pre-norm vs Post-norm (expanded) */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">Pre-norm vs Post-norm</h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+            <p>
+              The original transformer normalized <em>after</em> each sub-layer
+              (post-norm). LLaMA normalizes <em>before</em> (pre-norm). The
+              difference matters most at the start of training.
+            </p>
+            <p>
+              With <strong>post-norm</strong>: the residual add happens first,
+              then normalize. Early in training, weights are random and outputs
+              are noisy — so you're adding noise to noise, then normalizing. The
+              gradient signal is weak because the normalizer is constantly
+              rescaling noisy values in unpredictable directions.
+            </p>
+            <p>
+              With <strong>pre-norm</strong>: normalize first, then run the
+              sub-layer, then add back. The residual path carries the raw signal
+              directly. Even if the sub-layer's weights are garbage early on,
+              the model doesn't collapse — x passes through the residual
+              unchanged. This makes loss go down reliably from step one.
+            </p>
+          </div>
+
+          {/* Side-by-side comparison */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
+            <div className="rounded-lg border border-[var(--color-surface-overlay)] bg-[var(--color-surface-base)] p-4 space-y-2">
+              <p className="text-xs font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
+                Post-norm (original transformer)
+              </p>
+              <p className="text-xs font-mono text-[var(--color-text-secondary)] space-y-1">
+                <span className="block">x_attn = attention(x)</span>
+                <span className="block">x = norm(x + x_attn)  ← norm AFTER</span>
+                <span className="block">x_ffn = ffn(x)</span>
+                <span className="block">x = norm(x + x_ffn)   ← norm AFTER</span>
+              </p>
+              <p className="text-xs text-[var(--color-text-tertiary)]">
+                Gradient flows through normalizer. Unstable early in training,
+                requires careful learning rate warmup.
+              </p>
+            </div>
+            <div className="rounded-lg border border-[var(--color-accent-blue)]/25 bg-[var(--color-accent-blue)]/5 p-4 space-y-2">
+              <p className="text-xs font-semibold text-[var(--color-accent-blue)] uppercase tracking-wider">
+                Pre-norm (LLaMA)
+              </p>
+              <p className="text-xs font-mono text-[var(--color-text-secondary)] space-y-1">
+                <span className="block">x_attn = attention(norm(x))  ← norm BEFORE</span>
+                <span className="block">x = x + x_attn</span>
+                <span className="block">x_ffn = ffn(norm(x))         ← norm BEFORE</span>
+                <span className="block">x = x + x_ffn</span>
+              </p>
+              <p className="text-xs text-[var(--color-text-tertiary)]">
+                Residual path is clean. Stable from step one. No warmup needed.
+                Used by virtually all modern LLMs.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* ============================================================ */}
         {/* SECTION: SiLU / SwiGLU */}
@@ -168,6 +424,16 @@ pub fn silu(&self) -> Tensor {
 let gate = block.ffn_gate.matvec(&x_norm).silu();  // gate path
 let up   = block.ffn_up.matvec(&x_norm);            // signal path
 let ffn  = block.ffn_down.matvec(&gate.mul(&up));    // combine + project down`}
+        />
+
+        <TryThis
+          label="Trace FFN gate operation (SwiGLU)"
+          commands={[
+            'tensor_create {"id": "x_small", "data": [0.5, 1.2, -0.3, 0.8], "shape": [4]}',
+            'tensor_matmul {"a": "x_small", "b": "x_small", "description": "W_gate @ x (simulated)"}',
+            'autograd_expr {"expr": "0.5 * (1 / (1 + exp(-0.5)))", "description": "silu(0.5) — gate element 0"}',
+            'autograd_expr {"expr": "1.2 * (1 / (1 + exp(-1.2)))", "description": "silu(1.2) — gate element 1"}',
+          ]}
         />
 
         {/* ============================================================ */}
@@ -267,8 +533,18 @@ let ffn  = block.ffn_down.matvec(&gate.mul(&up));    // combine + project down`}
           </div>
         </InfoCard>
 
+        <TryThis
+          label="Trace Q/K/V composition with attention"
+          commands={[
+            'tensor_create {"id": "q_vec", "data": [1.0, 0.5, -0.3, 0.8], "shape": [1, 4]}',
+            'tensor_create {"id": "k_vec", "data": [0.7, 0.9, 0.2, -0.5], "shape": [1, 4]}',
+            'tensor_create {"id": "v_vec", "data": [1.0, 0.0, 0.0, 1.0], "shape": [1, 4]}',
+            'attention_forward {"q": "q_vec", "k": "k_vec", "v": "v_vec"}',
+          ]}
+        />
+
         {/* ============================================================ */}
-        {/* SECTION: Putting it together */}
+        {/* SECTION: Full Transformer Block (expanded) */}
         {/* ============================================================ */}
         <div className="space-y-4">
           <h2 className="text-2xl font-semibold">
@@ -276,24 +552,155 @@ let ffn  = block.ffn_down.matvec(&gate.mul(&up));    // combine + project down`}
           </h2>
           <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
             <p>
-              One transformer block is all of this combined:
-            </p>
-            <ol className="list-decimal list-inside space-y-1 ml-2">
-              <li><strong>RMSNorm</strong> the input</li>
-              <li>Compute Q, K, V projections</li>
-              <li>Apply <strong>RoPE</strong> to Q and K</li>
-              <li>Run <strong>attention</strong> (the formula from Ch5)</li>
-              <li><strong>Residual add</strong>: x = x + attention_output</li>
-              <li><strong>RMSNorm</strong> again</li>
-              <li>Run <strong>SwiGLU FFN</strong></li>
-              <li><strong>Residual add</strong>: x = x + ffn_output</li>
-            </ol>
-            <p>
-              Repeat this block 22 times (for TinyLlama) or 80 times (for
-              LLaMA 70B). Same structure, different weights. That's the entire
-              model.
+              Let's walk one token through a complete block with real shapes.
+              Assume TinyLlama: d_model = 2048, n_heads = 32, head_dim = 64,
+              ffn_hidden = 5632.
             </p>
           </div>
+
+          {/* Token journey table */}
+          <div className="overflow-x-auto">
+            <table className="w-full max-w-3xl text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-[var(--color-surface-overlay)]">
+                  <th className="text-left py-2 pr-4 font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">Step</th>
+                  <th className="text-left py-2 pr-4 font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">Operation</th>
+                  <th className="text-left py-2 font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">Shape</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--color-surface-overlay)]/50">
+                {[
+                  ["1", "Input x (embedding lookup)", "[2048]"],
+                  ["2", "x_norm₁ = RMSNorm(x)", "[2048]"],
+                  ["3", "Q = x_norm₁ @ W_Q", "[32, 64]  (32 heads × 64 dim)"],
+                  ["3", "K = x_norm₁ @ W_K", "[8, 64]   (grouped-query: 8 kv heads)"],
+                  ["3", "V = x_norm₁ @ W_V", "[8, 64]"],
+                  ["4", "Q, K = RoPE(Q, K, pos)", "[32, 64], [8, 64]"],
+                  ["5", "attn_out = Attention(Q, K, V)", "[32, 64] → [2048]"],
+                  ["6", "x = x + attn_out  (residual)", "[2048]"],
+                  ["7", "x_norm₂ = RMSNorm(x)", "[2048]"],
+                  ["8", "gate = silu(x_norm₂ @ W_gate)", "[5632]"],
+                  ["8", "up = x_norm₂ @ W_up", "[5632]"],
+                  ["8", "ffn_out = (gate * up) @ W_down", "[2048]"],
+                  ["9", "x = x + ffn_out  (residual)", "[2048]  ← same as input!"],
+                ].map(([step, op, shape], idx) => (
+                  <tr key={idx} className="hover:bg-[var(--color-surface-raised)]/50 transition-colors">
+                    <td className="py-2 pr-4 font-mono text-[var(--color-accent-blue)]">{step}</td>
+                    <td className="py-2 pr-4 text-[var(--color-text-secondary)]">{op}</td>
+                    <td className="py-2 font-mono text-[var(--color-text-tertiary)]">{shape}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-sm text-[var(--color-text-secondary)] max-w-3xl">
+            The output is exactly the same shape as the input. Stack this block
+            22× (TinyLlama) or 80× (LLaMA 70B). Same structure, different
+            weights. The final output goes through one more RMSNorm and a
+            linear layer (the "lm_head") to produce logits over the vocabulary.
+          </p>
+        </div>
+
+        <PredictExercise
+          question="After step 2 (x_norm₁ = RMSNorm(x)), what is the shape of x_norm₁ for a single token in TinyLlama?"
+          hint="RMSNorm doesn't change the shape — it only changes the values. What was the shape going in?"
+          answer="[2048]. RMSNorm is applied element-wise and the output shape always matches the input shape."
+          explanation="This is true for all normalization operations: LayerNorm, RMSNorm, BatchNorm all produce outputs with the same shape as their input. They only change the scale of the values, not the structure. This is why they can be inserted anywhere in the network without changing the architecture."
+        />
+
+        {/* TransformerBlockFlow interactive stepper */}
+        <TransformerBlockFlow />
+
+        {/* ============================================================ */}
+        {/* SECTION: Why Residual Connections? */}
+        {/* ============================================================ */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">
+            Why Residual Connections?
+          </h2>
+          <div className="space-y-3 text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-3xl">
+            <p>
+              Every transformer block ends with <code>x = x + sublayer(x)</code>.
+              This "residual connection" is not incidental — it's load-bearing.
+              Without it, training 32-layer networks is nearly impossible.
+            </p>
+            <p>
+              The reason: the <strong>vanishing gradient problem</strong>. During
+              backpropagation, gradients are multiplied as they flow backward
+              through each layer. If each layer shrinks gradients slightly — say
+              by a factor of 0.9 — after 32 layers you have:
+            </p>
+            <p className="font-mono text-xs bg-[var(--color-surface-base)] rounded p-3">
+              0.9³² ≈ 0.034  →  97% of the gradient signal is gone
+            </p>
+            <p>
+              Layers near the input see essentially zero gradient. They don't
+              learn. You've spent compute training a model where only the last
+              few layers do any real work.
+            </p>
+            <p>
+              Residual connections create a <strong>gradient highway</strong>.
+              The derivative of <code>x + f(x)</code> with respect to x is{" "}
+              <code>1 + f'(x)</code>. That constant <code>1</code> is
+              everything. Gradients now flow backward through the direct path
+              without multiplication — they arrive at early layers at full
+              strength.
+            </p>
+            <PredictExercise
+              question="Without residual connections, after 32 layers each multiplying the gradient by 0.9×, only ~3% of the original gradient signal reaches layer 1. What happens to those weights?"
+              hint="If a weight gets a gradient of 0.03 instead of 1.0, how much does it update per step?"
+              answer="The first layer's weights barely update — they're stuck near their random initialization. The model learns its later layers but the early feature extractors stay broken."
+              explanation="This is why deep networks without residuals (like very deep vanilla RNNs) are hard to train. The 'vanishing gradient problem' isn't just theoretical — it's why ResNet (2015) was a breakthrough. By adding residual connections, gradients flow directly to early layers with magnitude ~1.0, not 0.03. Every layer gets a real training signal."
+            />
+          </div>
+
+          {/* Concrete comparison */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
+            <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4 space-y-2">
+              <p className="text-xs font-semibold text-red-400 uppercase tracking-wider">
+                Without residuals
+              </p>
+              <div className="text-xs font-mono text-[var(--color-text-secondary)] space-y-1">
+                <p>gradient at layer 32: 1.0</p>
+                <p>gradient at layer 30: 0.81</p>
+                <p>gradient at layer 20: 0.12</p>
+                <p>gradient at layer 10: 0.019</p>
+                <p className="text-red-400">gradient at layer 1:  0.003 ← dead</p>
+              </div>
+              <p className="text-xs text-[var(--color-text-tertiary)]">
+                Assuming each layer multiplies gradient by 0.9×. Layers near the
+                input learn nothing.
+              </p>
+            </div>
+            <div className="rounded-lg border border-[var(--color-accent-emerald)]/25 bg-[var(--color-accent-emerald)]/5 p-4 space-y-2">
+              <p className="text-xs font-semibold text-[var(--color-accent-emerald)] uppercase tracking-wider">
+                With residuals
+              </p>
+              <div className="text-xs font-mono text-[var(--color-text-secondary)] space-y-1">
+                <p>gradient = <span className="text-[var(--color-accent-emerald)]">1</span> + f'(x)  ← direct path</p>
+                <p>gradient at layer 32: ≈ 1.9</p>
+                <p>gradient at layer 20: ≈ 1.9</p>
+                <p>gradient at layer 10: ≈ 1.9</p>
+                <p className="text-[var(--color-accent-emerald)]">gradient at layer 1:  ≈ 1.9 ← alive</p>
+              </div>
+              <p className="text-xs text-[var(--color-text-tertiary)]">
+                The "1" from the direct path dominates. All layers receive strong
+                gradient. Deep networks can actually train.
+              </p>
+            </div>
+          </div>
+
+          <InfoCard title="ResNet → Transformer" accent="blue">
+            <p>
+              Residual connections were first introduced in ResNet (2015) for
+              image classification, enabling 152-layer networks. The transformer
+              paper borrowed the idea directly. It's one of the few architectural
+              choices that appears in essentially every large neural network
+              built since 2016 — CNNs, transformers, diffusion models, all of
+              them.
+            </p>
+          </InfoCard>
         </div>
 
         {/* ============================================================ */}
@@ -309,12 +716,22 @@ let ffn  = block.ffn_down.matvec(&gate.mul(&up));    // combine + project down`}
               just as well. Applied before each sub-layer (pre-norm).
             </li>
             <li>
+              <strong>Pre-norm</strong> stabilizes early training: the residual
+              path carries raw signal, so the model can't collapse even when
+              sub-layer weights are random.
+            </li>
+            <li>
               <strong>SiLU</strong> = x &times; sigmoid(x). Smooth, no dead neurons.{" "}
               <strong>SwiGLU</strong> adds a gating mechanism with 3 weight matrices.
             </li>
             <li>
               <strong>RoPE</strong> rotates Q/K by position angles. Dot product
               encodes relative position from the geometry — no learned embeddings.
+            </li>
+            <li>
+              <strong>Residual connections</strong> are a gradient highway: the
+              derivative of x + f(x) is 1 + f'(x). That constant 1 means
+              gradients reach all 32+ layers without vanishing.
             </li>
             <li>
               A <strong>transformer block</strong> is: RMSNorm → Attention (with RoPE)

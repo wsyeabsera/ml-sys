@@ -13,6 +13,7 @@ import Chapter8 from "./pages/Chapter8";   // 06: Model Files (was Ch8)
 import Chapter9 from "./pages/Chapter9";   // 07: Transformers (was Ch9)
 import Chapter10 from "./pages/Chapter10"; // 08: Running a Real LLM (was Ch10)
 import Chapter11 from "./pages/Chapter11"; // 09: Training (NEW)
+import ChapterCnn from "./pages/ChapterCnn"; // 10: CNNs (NEW)
 
 // Misc
 import Chapter4 from "./pages/Chapter4";   // MCP Server (moved from main arc)
@@ -25,6 +26,7 @@ import Visualize from "./pages/Visualize";
 import ProjectAnd from "./pages/ProjectAnd";
 import ProjectXor from "./pages/ProjectXor";
 import ProjectAttention from "./pages/ProjectAttention";
+import ProjectCnn from "./pages/ProjectCnn";
 
 export default function App() {
   const location = useLocation();
@@ -45,6 +47,7 @@ export default function App() {
           <Route path="/learn/7" element={<Chapter9 />} />
           <Route path="/learn/8" element={<Chapter10 />} />
           <Route path="/learn/9" element={<Chapter11 />} />
+          <Route path="/learn/10" element={<ChapterCnn />} />
 
           {/* Misc */}
           <Route path="/misc/mcp-server" element={<Chapter4 />} />
@@ -65,6 +68,7 @@ export default function App() {
           <Route path="/projects/and" element={<ProjectAnd />} />
           <Route path="/projects/xor" element={<ProjectXor />} />
           <Route path="/projects/attention" element={<ProjectAttention />} />
+          <Route path="/projects/cnn" element={<ProjectCnn />} />
 
           {/* Tools */}
           <Route path="/playground" element={<Playground />} />

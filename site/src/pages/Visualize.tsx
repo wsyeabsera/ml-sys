@@ -14,8 +14,6 @@ const TYPE_CHAPTER_LINK: Record<string, { label: string; path: string }> = {
 };
 import { loadOutput, listOutputs, type StoredOutput } from "../lib/db";
 import { parseResult } from "../lib/result-parser";
-import TensorViz from "../components/playground/TensorViz";
-import AutogradViz from "../components/playground/AutogradViz";
 import AttentionHeatmap from "../components/visualizer/AttentionHeatmap";
 import AutogradGraphViz from "../components/visualizer/AutogradGraphViz";
 import MLPLayerViz from "../components/visualizer/MLPLayerViz";
