@@ -36,6 +36,16 @@
 - Set **`MCP_API_KEY`** in production so `/mcp` is not world-writable on your LAN.
 - Health check **`GET /health`** is outside the key middleware (no key required).
 
+## Cursor / streamable HTTP / Cloudflare Tunnel
+
+If the MCP client logs **SSE stream** or **Internal Server Error** when using a **remote HTTPS** URL (e.g. Cloudflare quick tunnel):
+
+1. Confirm the server process is up and **`GET https://<host>/health`** returns `ok`.
+2. Confirm the tunnel forwards to the same port as **`MCP_HTTP_BIND`** (e.g. `4001`).
+3. If the server uses **`MCP_API_KEY`**, add matching **`headers`** in `.mcp.json` (see [01-running-and-configuration.md](01-running-and-configuration.md)).
+4. Try **`http://127.0.0.1:4001/mcp`** on the machine running the server to isolate tunnel vs. app issues.
+5. Streamable HTTP + SSE behavior can differ by client version; upgrading Cursor or switching to **stdio** (`command` + `cargo run --bin mcp`) avoids HTTP/SSE entirely for local work.
+
 ## Prompt `learning_guide`
 
 - Reads `docs/ml-rust-project.md` via a **relative path** from the server process cwd. If the roadmap is empty or wrong, run the server with **`cwd = rs-tensor/`**.

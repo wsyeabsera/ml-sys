@@ -64,7 +64,22 @@ MCP_HTTP_BIND=127.0.0.1:4001 ./target/release/mcp
 ./target/release/mcp --http 127.0.0.1:4001
 ```
 
-Repo root [`.mcp.json`](../../../.mcp.json) shows a client pointing at `http://127.0.0.1:4001/mcp`.
+Repo root [`.mcp.json`](../../../.mcp.json) points the Cursor / IDE MCP client at a **public HTTPS** endpoint (see below). For purely local development, use `http://127.0.0.1:4001/mcp` instead.
+
+### Remote URL (Cloudflare Tunnel)
+
+When the MCP binary is reachable through **Cloudflare Tunnel** (or similar), configure the client with the full URL including path **`/mcp`**:
+
+| | |
+|--|--|
+| **HTTPS (tunnel)** | `https://openings-trivia-thereafter-reed.trycloudflare.com/mcp` |
+| **Local** | `http://127.0.0.1:4001/mcp` (or whatever host/port you pass to `--http` / `MCP_HTTP_BIND`) |
+
+**Notes:**
+
+- **Quick tunnels** (`trycloudflare.com`) get a **new hostname** whenever you restart `cloudflared` unless you use a named tunnel. Update `.mcp.json` and any docs when the URL changes.
+- The server must be running with HTTP enabled on the machine behind the tunnel (e.g. `MCP_HTTP_BIND=127.0.0.1:4001` and tunnel forwarding to `4001`).
+- If you set **`MCP_API_KEY`** on the server, add the same key to the client `headers` object, for example: `"headers": { "x-api-key": "your-secret" }` or use `Authorization` as described below.
 
 ### Optional API key (HTTP)
 

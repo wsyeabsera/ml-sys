@@ -24,6 +24,7 @@ The shorter **Chapter 4** intro in the learning book is still [../04-mcp-server.
 - **Server name (MCP):** `rs-tensor-mcp` (from `get_info`)
 - **Binary:** `cargo run --bin mcp` (from `rs-tensor/`)
 - **Transports:** stdio (default) or HTTP streamable (`--http` / `MCP_HTTP_BIND`)
+- **HTTP MCP URL (repo example):** `https://openings-trivia-thereafter-reed.trycloudflare.com/mcp` — see [01-running-and-configuration.md](01-running-and-configuration.md) for local URLs, tunnels, and API keys.
 - **State:** In-memory named tensors + optional one loaded LLaMA model per process
 
 ---
