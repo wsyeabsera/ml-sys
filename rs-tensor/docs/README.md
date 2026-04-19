@@ -46,6 +46,12 @@ That generates the API docs from the `///` comments in the code.
 3. **[Phase 1 checklist and next steps](03-codebase-and-next-steps.md)** — What’s done, what’s next (get, strides, mul, reshape, transpose), and the Phase 1 reading.
 4. **[The MCP server](04-mcp-server.md)** — How we exposed the tensor library as MCP tools for interactive use from Claude Code.
 
+### MCP handbook (agents & deployment)
+
+Use this when building **Claude agents**, wiring **HTTP/stdio**, or needing the **full tool reference**:
+
+- **[docs/mcp/README.md](mcp/README.md)** — Index: overview, configuration, all 36 tools, resources, prompts, workflows, limitations.
+
 ### Part II — Phase 2: Autograd engine
 
 5. **[The autograd engine](05-autograd.md)** — Scalar autograd: `Value` type, computation graph, backward pass, chain rule, and MCP tools.

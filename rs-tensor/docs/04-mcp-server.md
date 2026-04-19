@@ -103,4 +103,10 @@ Every new operation follows the same path:
 
 ---
 
+## Further reading (agent & operator handbook)
+
+For **full tool lists**, HTTP/auth, resources, prompts, agent design patterns, and troubleshooting, see the dedicated docs in **[docs/mcp/](mcp/README.md)** (multi-page handbook). Chapter 4 above is the short learning-book version; the handbook is meant for building **Claude agents** and running the server on other machines.
+
+---
+
 *Back to [Table of contents](README.md#table-of-contents). For the full arc, see [ml-rust-project.md](ml-rust-project.md).*
