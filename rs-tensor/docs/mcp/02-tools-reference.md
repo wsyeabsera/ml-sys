@@ -1,6 +1,10 @@
 # Tools reference (all 36)
 
-Each tool is implemented on `TensorServer` in `rs-tensor/src/mcp/tools/mod.rs`. Argument structs live in `tensor_ops.rs`, `autograd_ops.rs`, `cnn_ops.rs`, `gguf_ops.rs`, `llama_ops.rs`, `training_ops.rs`, `project.rs`.
+For **authoring agents over a remote URL:** you only need the tool **names and JSON arguments**. No local Rust code.
+
+Implementation lives in this repo on the **server** (`TensorServer` in `rs-tensor/src/mcp/tools/mod.rs`) — **not** on a URL-only client machine.
+
+**Path tools (`read_file`, `cargo_exec`, `gguf_*`, `llama_load`)** use the **server’s** filesystem and working directory. Paths like `Cargo.toml` or `/models/foo.gguf` must exist **where the MCP binary runs**, not on your laptop.
 
 Unless noted, successes return JSON text in the MCP result; failures return **error** content with a message string.
 
@@ -21,16 +25,18 @@ Convention: **2D matmul** uses row-major flat `data` with `shape [rows, cols]`.
 | `tensor_reshape` | `name`, `new_shape`, `result_name`. |
 | `tensor_transpose` | `name`, `dim0`, `dim1`, `result_name`. |
 | `tensor_inspect` | Full shape, strides, data. |
-| `tensor_list` | Lists stored tensors (see [limitations](05-limitations-and-troubleshooting.md) for edge cases). |
+| `tensor_list` | Lists stored tensors (see [limitations](05-limitations-and-troubleshooting.md)). |
 
 ---
 
-## 2. Project / build (2)
+## 2. Project / build (2) — **server filesystem**
 
 | Tool | Summary |
 |------|---------|
-| `read_file` | `path` relative to **`rs-tensor/`** crate root. |
-| `cargo_exec` | `command`: **`"build"`** or **`"run"`** only — stdout/stderr returned. |
+| `read_file` | `path` relative to **`rs-tensor/`** crate root **on the server**. |
+| `cargo_exec` | `command`: **`"build"`** or **`"run"`** — runs **`cargo`** on the **server**. |
+
+Remote-only agents often skip these unless you intentionally automate the hosted checkout.
 
 ---
 
@@ -39,11 +45,11 @@ Convention: **2D matmul** uses row-major flat `data` with `shape [rows, cols]`.
 | Tool | Summary |
 |------|---------|
 | `create_dataset` | `type`: `and` \| `or` \| `xor` \| `circle` (optional `n_samples` for circle). Produces `{type}_inputs` and `{type}_targets`. |
-| `init_mlp` | `architecture: usize[]` (e.g. `[2,4,1]`), optional `name` prefix for weights. |
+| `init_mlp` | `architecture: usize[]`, optional `name` prefix for weights. |
 | `mse_loss` | `predicted`, `target` tensor names — same element count. |
-| `train_mlp` | `mlp` prefix, `inputs`, `targets`, `lr`, `epochs` — full in-process training loop. |
+| `train_mlp` | `mlp`, `inputs`, `targets`, `lr`, `epochs`. |
 | `evaluate_mlp` | Forward only; optional `targets` for loss/accuracy. |
-| `mlp_predict` | Single sample `input: f32[]` through the stored MLP. |
+| `mlp_predict` | Single sample `input: f32[]`. |
 
 ---
 
@@ -62,26 +68,26 @@ Convention: **2D matmul** uses row-major flat `data` with `shape [rows, cols]`.
 
 | Tool | Summary |
 |------|---------|
-| `attention_forward` | `q_data`, `k_data`, `v_data`, `seq_len`, `d_k`, optional `d_v` — scaled dot-product attention + backward. |
+| `attention_forward` | `q_data`, `k_data`, `v_data`, `seq_len`, `d_k`, optional `d_v`. |
 
 ---
 
-## 6. GGUF (2)
+## 6. GGUF (2) — **paths on server**
 
 | Tool | Summary |
 |------|---------|
-| `gguf_inspect` | `path` — metadata + tensor inventory (absolute or relative). |
-| `gguf_load_tensor` | `path`, `tensor_name`, optional `store_as` — loads F32/F16 slice into tensor store. |
+| `gguf_inspect` | `path` — metadata + tensor list. |
+| `gguf_load_tensor` | `path`, `tensor_name`, optional `store_as`. |
 
 ---
 
-## 7. LLaMA (3)
+## 7. LLaMA (3) — **GGUF on server**
 
 | Tool | Summary |
 |------|---------|
-| `llama_load` | `path` to a **Llama-compatible** GGUF — loads weights + vocab into server state. |
-| `llama_generate` | `prompt` and/or `token_ids`, `max_tokens`, `temperature` — requires loaded model. |
-| `llama_inspect` | Dump config / shapes / vocab sample — requires loaded model. |
+| `llama_load` | Llama-compatible GGUF **path readable by the server**. |
+| `llama_generate` | `prompt` / `token_ids`, `max_tokens`, `temperature`. |
+| `llama_inspect` | Config / shapes — needs loaded model. |
 
 ---
 
@@ -91,29 +97,25 @@ Convention: **2D matmul** uses row-major flat `data` with `shape [rows, cols]`.
 |------|---------|
 | `conv2d_forward` | `input`, `kernel`, optional `bias`, `stride`, `padding`, `result_name` — NCHW. |
 | `max_pool2d` | `input`, `kernel_size`, optional `stride`, `result_name`. |
-| `avg_pool2d` | Same as max, mean window. |
+| `avg_pool2d` | Same; mean window. |
 | `batch_norm2d` | `input`, `gamma`, `beta`, optional `eps`, `result_name`. |
 | `flatten_tensor` | 4D → 2D `[N, C*H*W]`. |
 | `global_avg_pool` | NCHW → NC. |
-| `init_cnn` | Layer spec: `conv2d`, `relu`, `max_pool2d`, `avg_pool2d`, `flatten`, `linear`. |
-| `cnn_forward` | `model` name prefix, `input` tensor — walks conv weights then FC weights. |
+| `init_cnn` | Layer spec list. |
+| `cnn_forward` | `model` prefix, `input` tensor. |
 
 ---
 
-## Typical call chains (for agents)
+## Typical call chains (agents)
 
-**XOR toy MLP:** `create_dataset` (xor) → `init_mlp` → `train_mlp` → `evaluate_mlp` / `mlp_predict`.
+**XOR MLP:** `create_dataset` (xor) → `init_mlp` → `train_mlp` → `evaluate_mlp` / `mlp_predict`.
 
-**Manual CNN:** `tensor_create` (image + kernel + bias) → `conv2d_forward` → `max_pool2d` → …
+**CNN:** `init_cnn` → `tensor_create` (input) → `cnn_forward` — or manual conv stack with `conv2d_forward`, pools, etc.
 
-**Declared CNN:** `init_cnn` → `tensor_create` (input image) → `cnn_forward`.
-
-**LLaMA:** `llama_load` → `llama_generate` → optionally `llama_inspect`.
-
-**GGUF tensor:** `gguf_inspect` → `gguf_load_tensor` → use name in other ops if shapes match.
+**LLaMA:** `llama_load` (server path) → `llama_generate`.
 
 ---
 
-*See [05-limitations-and-troubleshooting.md](05-limitations-and-troubleshooting.md) for `cargo run`, LLaMA metadata, and path pitfalls.*
+*See [05-limitations-and-troubleshooting.md](05-limitations-and-troubleshooting.md) for path and SSE notes.*
 
 *Next: [03-resources-and-prompts.md](03-resources-and-prompts.md).*

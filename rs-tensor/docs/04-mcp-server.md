@@ -105,7 +105,7 @@ Every new operation follows the same path:
 
 ## Further reading (agent & operator handbook)
 
-For **full tool lists**, HTTP/auth, resources, prompts, agent design patterns, and troubleshooting, see the dedicated docs in **[docs/mcp/](mcp/README.md)** (multi-page handbook). Chapter 4 above is the short learning-book version; the handbook is meant for building **Claude agents** and running the server on other machines.
+The **[docs/mcp/](mcp/README.md)** handbook covers tool lists, **`https://…/mcp` client setup without a local clone**, resources, prompts, and troubleshooting. **You can use the MCP server from another computer with only the public URL and optional API-key headers** — no Rust toolchain or this repo on that machine. Running `cargo` or editing source is only needed **on the machine that hosts** the binary (or for contributors).
 
 ---
 

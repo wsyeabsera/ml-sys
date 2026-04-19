@@ -48,9 +48,9 @@ That generates the API docs from the `///` comments in the code.
 
 ### MCP handbook (agents & deployment)
 
-Use this when building **Claude agents**, wiring **HTTP/stdio**, or needing the **full tool reference**:
+Use this when building **Claude agents** or connecting **only via MCP URL** (no checkout on your machine):
 
-- **[docs/mcp/README.md](mcp/README.md)** — Index: overview, configuration, all 36 tools, resources, prompts, workflows, limitations.
+- **[docs/mcp/README.md](mcp/README.md)** — Overview, **HTTPS client config**, all 36 tools, resources, workflows. Server operators who build from source also use **[docs/mcp/01-running-and-configuration.md](mcp/01-running-and-configuration.md)**.
 
 ### Part II — Phase 2: Autograd engine
 

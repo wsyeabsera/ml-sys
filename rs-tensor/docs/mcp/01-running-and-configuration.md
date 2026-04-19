@@ -1,62 +1,83 @@
 # Running and configuration
 
-All commands assume the working directory is **`rs-tensor/`** (the crate that contains `Cargo.toml` for the MCP binary).
+## Client vs server
 
-## Build the binary
+- **Client (your other PC, agents, Cursor):** configure MCP with a **`url`** — **no** git clone, **no** Rust toolchain, **no** MCP source required.
+- **Server:** the process that runs the `mcp` binary (your tunnel points here). Build/run instructions below are **only for whoever hosts that process**.
 
-```bash
-cargo build --bin mcp
-```
+---
 
-Release build:
+## 1. Client configuration — URL only (recommended for remote work)
 
-```bash
-cargo build --release --bin mcp
-```
-
-The executable is `target/debug/mcp` or `target/release/mcp`.
-
-## Transport A — stdio (default)
-
-With no HTTP bind configured, `src/bin/mcp.rs` serves MCP over **stdin/stdout**. This is what most desktop clients (Claude Code, Cursor-style MCP) expect: they spawn the process and speak JSON-RPC over pipes.
-
-Example manual smoke (single `initialize` line):
-
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}' | ./target/debug/mcp
-```
-
-### Claude Code / Cursor-style config (stdio)
-
-Use **`command` + `args` + `cwd`**, not `url`. Example shape (adjust `cwd` to your clone path):
+Paste this shape into your IDE / MCP settings (example host — yours may differ):
 
 ```json
 {
   "mcpServers": {
     "rs-tensor": {
-      "command": "cargo",
-      "args": ["run", "--bin", "mcp"],
-      "cwd": "/path/to/ml-sys/rs-tensor"
+      "url": "https://openings-trivia-thereafter-reed.trycloudflare.com/mcp",
+      "headers": {}
     }
   }
 }
 ```
 
-For faster startup after you trust the binary, point `command` at `target/release/mcp` instead of `cargo run`.
+The canonical example in this repo is [`.mcp.json`](../../../.mcp.json) at the monorepo root (useful as a template; **copy the `url` to any machine** — you don’t need to clone the repo on that machine).
 
-## Transport B — HTTP (streamable)
+### Check connectivity
 
-If either:
+- **`GET https://<host>/health`** should return the plain text **`ok`** (no MCP payload — just confirms the process and tunnel).
+- The MCP endpoint is **`https://<host>/mcp`** (path required).
 
-- **`--http <addr>`** is passed (e.g. `--http 0.0.0.0:4001`), or  
-- **`MCP_HTTP_BIND`** is set to a non-empty address,
+### Authentication
 
-then the server uses **streamable HTTP** instead of stdio. Implementation: `run_http` in `src/bin/mcp.rs`.
+If the server sets **`MCP_API_KEY`**, add the same secret on the client:
 
-- **MCP endpoint:** `http://<bind>/mcp`
-- **Health:** `GET /health` → plain text `ok`
+```json
+"headers": {
+  "x-api-key": "your-secret"
+}
+```
 
-Example:
+Alternatively: `Authorization: Bearer your-secret`**
+
+If the env var is unset or empty, the server does **not** require a key.
+
+### Tunnel hostname changes
+
+**Cloudflare quick tunnels** (`trycloudflare.com`) often get a **new hostname** when `cloudflared` restarts. Update the **`url`** in your client config when that happens.
+
+---
+
+## 2. What runs where (summary)
+
+| Component | Runs on client | Runs on server |
+|-----------|----------------|----------------|
+| MCP tools (`tensor_create`, `train_mlp`, …) | *Requested* from client | **Executed** here |
+| Tensor RAM / MLP / CNN state | | Yes |
+| `read_file` / `cargo_exec` | | Yes — **server paths** |
+| `docs://` / `tensor://` resources | | Yes — read from server |
+
+---
+
+## 3. Server-side: build and run the binary
+
+*Skip this section if you only connect via URL and someone else hosts the server.*
+
+All commands below assume a checkout with **`rs-tensor/`** containing `Cargo.toml` for the MCP binary.
+
+### Build
+
+```bash
+cd rs-tensor
+cargo build --release --bin mcp
+```
+
+Binary: `target/release/mcp` (or `debug` without `--release`).
+
+### HTTP mode (for tunnels and LAN)
+
+Set bind address so the process listens on TCP:
 
 ```bash
 MCP_HTTP_BIND=127.0.0.1:4001 ./target/release/mcp
@@ -64,51 +85,37 @@ MCP_HTTP_BIND=127.0.0.1:4001 ./target/release/mcp
 ./target/release/mcp --http 127.0.0.1:4001
 ```
 
-Repo root [`.mcp.json`](../../../.mcp.json) points the Cursor / IDE MCP client at a **public HTTPS** endpoint (see below). For purely local development, use `http://127.0.0.1:4001/mcp` instead.
+- **MCP:** `http://<bind>/mcp`
+- **Health:** `GET /health` → `ok`
 
-### Remote URL (Cloudflare Tunnel)
+Point **Cloudflared** (or nginx, etc.) at that port for HTTPS on the public URL.
 
-When the MCP binary is reachable through **Cloudflare Tunnel** (or similar), configure the client with the full URL including path **`/mcp`**:
-
-| | |
-|--|--|
-| **HTTPS (tunnel)** | `https://openings-trivia-thereafter-reed.trycloudflare.com/mcp` |
-| **Local** | `http://127.0.0.1:4001/mcp` (or whatever host/port you pass to `--http` / `MCP_HTTP_BIND`) |
-
-**Notes:**
-
-- **Quick tunnels** (`trycloudflare.com`) get a **new hostname** whenever you restart `cloudflared` unless you use a named tunnel. Update `.mcp.json` and any docs when the URL changes.
-- The server must be running with HTTP enabled on the machine behind the tunnel (e.g. `MCP_HTTP_BIND=127.0.0.1:4001` and tunnel forwarding to `4001`).
-- If you set **`MCP_API_KEY`** on the server, add the same key to the client `headers` object, for example: `"headers": { "x-api-key": "your-secret" }` or use `Authorization` as described below.
-
-### Optional API key (HTTP)
-
-If **`MCP_API_KEY`** is set to a non-empty string, requests to `/mcp` must include the key:
-
-- Header **`x-api-key: <key>`**, or  
-- Header **`Authorization: Bearer <key>`**
-
-Otherwise the server returns **401**. If `MCP_API_KEY` is unset or empty, auth is disabled.
-
-## Environment variables summary
+### Environment variables (server)
 
 | Variable | Effect |
 |----------|--------|
-| `MCP_HTTP_BIND` | If non-empty, same as `--http` (HTTP mode). |
-| `MCP_API_KEY` | If non-empty, required for HTTP `/mcp` requests (see above). |
+| `MCP_HTTP_BIND` | Non-empty → HTTP mode; same as `--http <addr>`. |
+| `MCP_API_KEY` | Non-empty → require key on `/mcp` (see above). |
 
-## Working directory matters
+### stdio mode (optional — local dev with a checkout only)
 
-- **`read_file`** paths are relative to the **`rs-tensor/`** project root (the directory containing this crate’s `Cargo.toml`).
-- **GGUF / LLaMA paths** in tools are passed to `std::fs::File::open`: use paths valid from the server’s current working directory, or absolute paths.
+If **`MCP_HTTP_BIND`** is unset and no **`--http`** argument, the binary speaks MCP on **stdin/stdout**. Some editors spawn `cargo run --bin mcp` with `cwd` set to `rs-tensor/` — useful **only** when you have the repo and want zero tunnel. This is **not** required for URL-only clients.
 
-When spawning via `cargo run`, ensure **`cwd`** is `rs-tensor/` so relative paths and any code that assumes the crate root behave consistently.
+---
 
-## Process lifecycle
+## 4. Server working directory
 
-- One OS process = one tensor store + one optional LLaMA model.
-- Restarting the process clears everything.
-- HTTP mode uses a **stateless** streamable config (`stateful_mode: false` in code); each session implementation detail is handled by `rmcp` — still assume **fresh tensor store per server instance** unless you verify otherwise for your client.
+- **`read_file`** resolves paths relative to the **`rs-tensor/`** crate root **on the server**.
+- **`learning_guide`** prompt reads `docs/ml-rust-project.md` relative to the server process **cwd** (should be `rs-tensor/` for a full roadmap).
+- **GGUF / LLaMA** paths in tool arguments are opened **on the server**; use paths valid there.
+
+---
+
+## 5. Process lifecycle
+
+- One server process = one tensor store + one optional LLaMA model.
+- Restart clears all in-memory state.
+- HTTP mode uses stateless streamable config in code; still treat memory as **fresh per process**.
 
 ---
 

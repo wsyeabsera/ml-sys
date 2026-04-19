@@ -1,76 +1,75 @@
 # Agents and workflows
 
-This document is for **you** (or another developer) building **Claude agents**, custom orchestrators, or MCP-driven scripts on a second machine. It does not assume a specific framework beyond “LLM + MCP tools”.
+This document assumes you connect to MCP with a **`url`** (HTTPS) from a **second machine without this repository** — the common case for **Cursor + Cloudflare tunnel + agents**.
+
+---
+
+## Setup on the other PC
+
+1. Put the MCP endpoint in your client config (same shape as repo [`.mcp.json`](../../../.mcp.json)):  
+   `"url": "https://<your-host>/mcp"`  
+   plus **`headers`** if the server uses **`MCP_API_KEY`**.
+2. Confirm **`GET https://<your-host>/health`** → `ok`.
+3. No `cargo`, no clone, no MCP source required **on that machine**.
+
+Full detail: [01-running-and-configuration.md](01-running-and-configuration.md).
+
+---
 
 ## Design principles
 
-1. **Names are handles** — Every tensor the agent cares about must be created or produced as a **named** entry in the server store (`tensor_create`, or op results via `result_name`). The agent should track a small **symbol table** (on paper or in context): e.g. `X`, `W`, `b`, `loss_grad`.
-2. **Order matters** — `train_mlp` depends on dataset tensors and `init_mlp` weight prefixes. Always call tools in a dependency order; verify errors and retry with corrected names.
-3. **Minimize round-trips** — Batch logical steps in one assistant turn where your client allows multiple tool calls; still respect causal order (create before use).
-4. **Verify with inspect** — After non-trivial ops, `tensor_inspect` or `tensor_list` catches shape mistakes early.
+1. **Names are handles** — Use `tensor_create` / `result_name`; track names in the agent (symbol table).
+2. **Order matters** — Datasets before `train_mlp`; weights before `evaluate_mlp`.
+3. **Server paths** — `read_file`, `cargo_exec`, `gguf_*`, `llama_load` use the **server** disk. Skip them in prompts if the agent only does pure tensor work over the wire.
+4. **Inspect often** — `tensor_inspect` / `tensor_list` after tricky ops.
 
-## Suggested system prompt (sketch)
+---
 
-You can paste/adapt this for a “tensor lab” subagent:
+## Suggested system prompt (remote agent)
 
-> You have access to the rs-tensor MCP tools. Tensor state lives **only in the MCP server process**; names are stable handles. Always use `tensor_create` or an op’s `result_name` before referring to a tensor. Prefer `tensor_inspect` after reshaping or matmul. For file paths, `read_file` is relative to the `rs-tensor` crate root. `cargo_exec` only accepts `"build"` or `"run"`. For LLaMA, you must `llama_load` a compatible GGUF first. If a tool errors, read the message and adjust shapes or paths — do not invent tensor names that were never created.
+Adapt for a “tensor lab” subagent:
 
-Tighten or relax based on your safety needs (file read / cargo).
+> You use the rs-tensor MCP over **HTTPS**. Tensor state lives **only on the server**. Create tensors with `tensor_create` or use each op’s `result_name` before referencing a name. Prefer `tensor_inspect` after matmul/reshape. **`read_file` and `cargo_exec` run on the server’s filesystem** — do not assume paths exist unless you know the deployment. **`llama_load` needs a GGUF path on the server.** For LLaMA text generation, call `llama_load` first with a valid server path, then `llama_generate`. On errors, adjust shapes or names; never invent tensor names that were not created.
+
+---
 
 ## Workflow recipes
 
-### A. Exploratory tensor math
+All steps are **MCP tool calls** to the remote server — no local code.
 
-1. `tensor_create` with small shapes.
-2. `tensor_add` / `tensor_matmul` / … with explicit `result_name`.
-3. `tensor_inspect` on results.
+### A. Tensor math
 
-### B. Teach a concept (pedagogy)
+`tensor_create` → `tensor_add` / `tensor_matmul` / … → `tensor_inspect`.
 
-1. `resources/read` `docs://big-picture` or chapter docs.
-2. Optional: MCP prompt `explain_tensor_op` with `operation` = `matmul` | `reshape` | …
-3. Ground with numeric `tensor_create` + `tensor_inspect`.
+### B. Learning + examples
 
-### C. XOR / toy classification
+`resources/read` `docs://big-picture` → optional prompts → numeric tensors.
 
-1. `create_dataset` with `type: xor`.
-2. `init_mlp` with `architecture: [2, hidden, 1]` matching dataset widths.
-3. `train_mlp` with the returned `*_inputs` / `*_targets` names.
-4. `evaluate_mlp` then `mlp_predict` on manual inputs.
+### C. XOR toy classifier
 
-### D. CNN smoke test
+`create_dataset` (xor) → `init_mlp` → `train_mlp` → `evaluate_mlp` / `mlp_predict`.
 
-1. `init_cnn` with a small spec matching your image size (see [limitations](05-limitations-and-troubleshooting.md) for shape math).
-2. `tensor_create` input NCHW.
-3. `cnn_forward` with the same model prefix.
+### D. CNN
 
-### E. GGUF inspection (no LLaMA)
+`init_cnn` → `tensor_create` (NCHW input) → `cnn_forward`.
 
-1. `gguf_inspect` on path.
-2. `gguf_load_tensor` for a tensor name you need in Rust-side math (only if shapes/dtypes align with later ops).
+### E. GGUF / LLaMA (server paths required)
 
-### F. Full LLaMA (heavy)
+`gguf_inspect` with a path valid **on the server** → `gguf_load_tensor` or `llama_load` → `llama_generate` as appropriate.
 
-1. Obtain a **Llama-format** GGUF with expected tensor names (see `LlamaModel::from_gguf` in `src/llama.rs`).
-2. `llama_load` — may take significant RAM and time.
-3. `llama_generate` with small `max_tokens` first.
-4. `llama_inspect` to confirm config.
+---
 
-## Multi-agent split (optional)
+## Testing
 
-- **Teacher agent:** resources + prompts + `read_file` on docs; avoids training tools.
-- **Lab agent:** tensor + training tools only; same MCP server so they share the tensor store if using one process (be careful about concurrent writes — server uses a mutex, but logically separating tasks reduces confusion).
+- **Your case:** Cursor (or similar) with **URL** MCP config — exercise tools against the live server.
+- **Optional:** Someone with a local checkout can also use **stdio** MCP (`cargo run --bin mcp`) for offline dev; **not** required for URL-only users.
 
-## Testing without Claude
+---
 
-- Use **Cursor / Claude Code** with MCP enabled (stdio config).
-- Or hit **HTTP** mode with an MCP-compatible client/SDK and the same tool names.
-- For CI-style checks, run `cargo test` in `rs-tensor` (library tests); MCP-specific integration tests can shell out to the binary if you add them later.
+## Naming conventions
 
-## Naming conventions (recommended)
-
-- Prefix experiment names: `exp1_X`, `exp1_grad`, …
-- Use **lower_snake_case** to match JSON examples and avoid spaces in `tensor://` URIs.
+- Prefix experiments: `exp1_X`, …
+- Use **`lower_snake_case`** for tensor names (works cleanly in `tensor://` URIs).
 
 ---
 

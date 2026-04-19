@@ -2,51 +2,46 @@
 
 ## Purpose
 
-The **rs-tensor MCP server** exposes the **rs-tensor** Rust crate through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/): tools an LLM client can discover and call, plus optional **resources** (files, tensors as JSON) and **prompts** (starter messages for teaching/debugging).
+The **rs-tensor MCP server** exposes tensor operations, tiny ML workflows, GGUF/LLaMA hooks, and learning docs through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). Any MCP-capable client can call tools over the network **without** a local checkout — only an **`https://…/mcp`** URL (and optionally auth headers).
 
-Think of it as a **remote brain for tensors**: create named tensors, run ops, train small MLPs, run CNN forward passes, inspect GGUF files, and (if you provide a compatible model) run LLaMA inference — all driven by structured JSON over MCP instead of writing Rust in the loop.
+Think of it as a **hosted tensor service**: your agent sends JSON tool calls; computation and RAM live on whoever runs the server.
+
+## Remote client vs server (important)
+
+| | **Your other PC (URL only)** | **Machine running the MCP binary** |
+|--|------------------------------|-------------------------------------|
+| Needs clone / Rust? | **No** | Yes (to build), or a deployed binary |
+| Needs MCP source? | **No** | Yes if you change code |
+| Holds tensors / LLaMA weights? | No | **Yes** — all tool state is here |
+| `read_file`, `cargo_exec`, GGUF paths? | N/A locally | Resolved on **this** filesystem |
+
+Implementation details for contributors live under `rs-tensor/src/mcp/` in this repo; **you do not need to open those files** to use agents against a URL.
 
 ## Capabilities (protocol level)
 
-The server advertises:
-
-- **Tools** — primary surface (create tensors, matmul, training, etc.)
-- **Resources** — read-only URIs for markdown chapters, `tensor.rs`, and live `tensor://{name}` snapshots
+- **Tools** — tensors, training, CNN, GGUF, LLaMA, etc.
+- **Resources** — `docs://…` chapters, `tensor://{name}` JSON, `source://tensor.rs` from the **server’s** tree
 - **Prompts** — `explain_tensor_op`, `debug_shape_mismatch`, `learning_guide`
-
-Implementation: `rs-tensor/src/mcp/mod.rs` (`ServerCapabilities`).
 
 ## Mental model: named handles
 
-MCP calls are **stateless JSON in / JSON out**. You cannot pass a Rust `Tensor` by reference across calls. The server therefore keeps a **process-local map**:
+MCP calls are **stateless JSON**. The server keeps **`name → Tensor`**. Your agent should track names (`result_name`, dataset tensors, MLP prefixes). **Restarting the server** clears all tensors and unloads LLaMA.
 
-`name: String → Tensor`
-
-Tools take names (e.g. `a`, `b`, `result_name`) and read/write this store. Names are the **only stable handles** your agent should rely on between tool calls.
-
-A second piece of state is optional:
-
-- **At most one LLaMA model** loaded from GGUF (`llama_load`), plus vocabulary for tokenization.
-
-## What runs where
-
-- **Your agent** (Claude, another LLM, or a script using an MCP SDK) decides *which* tool to call and with *what* arguments.
-- **The MCP server process** holds tensors and the optional LLaMA weights in RAM.
-- **No automatic persistence:** restarting the server clears all named tensors and unloads the model.
+Optional: **at most one** loaded LLaMA model (`llama_load`).
 
 ## When to use which surface
 
 | Goal | Prefer |
 |------|--------|
-| Quick tensor math | Tools: `tensor_create`, `tensor_add`, `tensor_matmul`, … |
-| Teach concepts / roadmap | Resources: `docs://…` or prompt `learning_guide` |
-| Inspect live tensor JSON | Resource `tensor://{name}` after `tensor_create` |
-| Build or run the crate | `cargo_exec` (limited subcommands; see limitations doc) |
-| Full LLaMA inference | `llama_load` + `llama_generate` (requires real Llama GGUF) |
+| Tensor math / training / CNN | Tools (from client via URL) |
+| Learning text | Resources `docs://…` (served from server) |
+| Inspect tensors as JSON | `tensor_inspect` or `tensor://{name}` |
+| Build Rust crate on **server** | `cargo_exec` (runs on server) |
+| LLaMA | `llama_load` paths must exist **on the server** |
 
-## Security note
+## Security
 
-Tools can **read files under the `rs-tensor` project** (`read_file`) and run **`cargo build` / `cargo run`** (`cargo_exec`). Treat the server as trusted with respect to that working tree. HTTP mode can enforce an API key; see [01-running-and-configuration.md](01-running-and-configuration.md).
+`read_file` and `cargo_exec` execute against the **server’s** project tree and shell environment. `read_file` paths are relative to the server’s `rs-tensor` crate root. If you expose the URL publicly, set **`MCP_API_KEY`** on the server and matching **`headers`** on the client ([01-running-and-configuration.md](01-running-and-configuration.md)).
 
 ---
 
