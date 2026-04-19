@@ -38,13 +38,19 @@
 
 ## Cursor / streamable HTTP / Cloudflare Tunnel
 
-If the MCP client logs **SSE stream** or **Internal Server Error** when using a **remote HTTPS** URL (e.g. Cloudflare quick tunnel):
+**This is not the same as “tools are broken.”** If you already verified **`tensor_create`**, **`tensor_list`**, etc., the **MCP tool handlers and rs-tensor logic are doing their job**.
+
+Some IDE clients use **streamable HTTP** and an **SSE (Server-Sent Events)** channel for part of the session. That **transport** can log **reconnect** or **500** when the tunnel hiccups, the client retries, or a proxy times out—**even while normal tool calls still succeed**. Noisy SSE lines and working tools can coexist.
+
+To avoid HTTP/SSE entirely on your machine, use **stdio** MCP (`command` + `cargo run --bin mcp`) as in [01-running-and-configuration.md](01-running-and-configuration.md).
+
+If **tool calls** actually fail or never connect (not just log noise):
 
 1. Confirm the server process is up and **`GET https://<host>/health`** returns `ok`.
 2. Confirm the tunnel forwards to the same port as **`MCP_HTTP_BIND`** (e.g. `4001`).
 3. If the server uses **`MCP_API_KEY`**, add matching **`headers`** in `.mcp.json` (see [01-running-and-configuration.md](01-running-and-configuration.md)).
 4. Try **`http://127.0.0.1:4001/mcp`** on the machine running the server to isolate tunnel vs. app issues.
-5. Streamable HTTP + SSE behavior can differ by client version; upgrading Cursor or switching to **stdio** (`command` + `cargo run --bin mcp`) avoids HTTP/SSE entirely for local work.
+5. Streamable HTTP + SSE behavior can differ by client version; try upgrading Cursor.
 
 ## Prompt `learning_guide`
 
